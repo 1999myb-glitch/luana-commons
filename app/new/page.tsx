@@ -13,6 +13,21 @@ const cats = [
 
 const TAGS = ['AI','ビジネス','マーケティング','SNS','トレンド','ツール','議事録','ノウハウ']
 
+const FILE_ICONS: Record<string, string> = {
+  pdf: '📄', ppt: '📊', pptx: '📊', xls: '📗', xlsx: '📗',
+  doc: '📘', docx: '📘', png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️',
+}
+
+function getFileIcon(name: string) {
+  const ext = name.split('.').pop()?.toLowerCase() || ''
+  return FILE_ICONS[ext] || '📎'
+}
+
+function isImage(name: string) {
+  const ext = name.split('.').pop()?.toLowerCase() || ''
+  return ['png','jpg','jpeg','gif','webp'].includes(ext)
+}
+
 export default function NewPost() {
   const router = useRouter()
   const [title, setTitle] = useState('')
@@ -22,8 +37,8 @@ export default function NewPost() {
   const [tags, setTags] = useState<string[]>([])
   const [linkUrl, setLinkUrl] = useState('')
   const [linkLabel, setLinkLabel] = useState('')
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [previews, setPreviews] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -31,11 +46,21 @@ export default function NewPost() {
     setTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
   }
 
-  function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setImageFile(file)
-    setImagePreview(URL.createObjectURL(file))
+  function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const selected = Array.from(e.target.files || [])
+    setFiles(prev => [...prev, ...selected])
+    selected.forEach(file => {
+      if (isImage(file.name)) {
+        setPreviews(prev => [...prev, URL.createObjectURL(file)])
+      } else {
+        setPreviews(prev => [...prev, ''])
+      }
+    })
+  }
+
+  function removeFile(index: number) {
+    setFiles(prev => prev.filter((_, i) => i !== index))
+    setPreviews(prev => prev.filter((_, i) => i !== index))
   }
 
   async function handleSubmit() {
@@ -46,32 +71,28 @@ export default function NewPost() {
     setLoading(true)
     const supabase = createClient()
 
-    let imageUrl = ''
-    if (imageFile) {
-      const ext = imageFile.name.split('.').pop()
-      const path = `${Date.now()}.${ext}`
+    const uploadedUrls: string[] = []
+    for (const file of files) {
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}-${file.name}`
       const { error: uploadError } = await supabase.storage
         .from('post-images')
-        .upload(path, imageFile, { contentType: imageFile.type })
+        .upload(path, file, { contentType: file.type })
       if (uploadError) {
         setLoading(false)
-        return setError('画像のアップロードに失敗しました')
+        return setError(`ファイルのアップロードに失敗しました: ${file.name}`)
       }
       const { data } = supabase.storage.from('post-images').getPublicUrl(path)
-      imageUrl = data.publicUrl
+      uploadedUrls.push(`${file.name}::${data.publicUrl}`)
     }
 
-    const finalBody = linkUrl
-      ? `${body}\n\n📎 [${linkLabel || linkUrl}](${linkUrl})`
-      : body
+    const linkPart = linkUrl
+      ? `\n\n📎 [${linkLabel || linkUrl}](${linkUrl})` : ''
+    const finalBody = body + linkPart
 
     const { error } = await supabase.from('posts').insert({
-      title,
-      body: finalBody,
-      category,
-      author_name: author,
-      image_urls: imageUrl ? [imageUrl] : [],
-      likes_count: 0,
+      title, body: finalBody, category, author_name: author,
+      image_urls: uploadedUrls, likes_count: 0,
     })
     setLoading(false)
     if (error) return setError('投稿に失敗しました: ' + error.message)
@@ -109,26 +130,37 @@ export default function NewPost() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">IMAGE（画像アップロード）</label>
-            <div className="w-full bg-white border-2 border-dashed border-[#D6C4A8] rounded-xl p-6 text-center">
-              {imagePreview ? (
-                <div>
-                  <img src={imagePreview} alt="preview" className="max-h-48 mx-auto rounded-lg mb-3 object-cover" />
-                  <button onClick={() => { setImageFile(null); setImagePreview('') }} className="text-xs text-[#A09080] underline">削除</button>
-                </div>
-              ) : (
-                <label className="cursor-pointer">
-                  <div className="text-3xl mb-2">📷</div>
-                  <p className="text-sm text-[#A09080]">クリックして画像を選択</p>
-                  <p className="text-xs text-[#C0B0A0] mt-1">JPG, PNG, GIF対応</p>
-                  <input type="file" accept="image/*" onChange={handleImage} className="hidden" />
-                </label>
-              )}
-            </div>
+            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">📎 ファイル添付</label>
+            <p className="text-xs text-[#A09080] mb-3">画像・PDF・Word・Excel・PowerPoint対応（複数可）</p>
+            <label className="block w-full bg-white border-2 border-dashed border-[#D6C4A8] rounded-xl p-6 text-center cursor-pointer hover:border-[#8A6F4D] transition-colors">
+              <div className="text-3xl mb-2">📁</div>
+              <p className="text-sm text-[#A09080]">クリックしてファイルを選択</p>
+              <p className="text-xs text-[#C0B0A0] mt-1">PNG・JPG・PDF・DOCX・XLSX・PPTX</p>
+              <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={handleFiles} className="hidden" />
+            </label>
+
+            {files.length > 0 && (
+              <div className="mt-3 flex flex-col gap-2">
+                {files.map((file, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-xl px-4 py-3">
+                    {previews[i] ? (
+                      <img src={previews[i]} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                    ) : (
+                      <span className="text-2xl">{getFileIcon(file.name)}</span>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#2C2C2C] truncate">{file.name}</p>
+                      <p className="text-xs text-[#A09080]">{(file.size / 1024).toFixed(0)} KB</p>
+                    </div>
+                    <button onClick={() => removeFile(i)} className="text-xs text-[#A09080] hover:text-red-400">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">📎 リンク添付（Google Drive・PDF・URL）</label>
+            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">🔗 リンク添付（Google Drive・URL）</label>
             <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://drive.google.com/... または任意のURL" className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D] mb-2" />
             <input value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="リンクの表示名（例：資料はこちら）" className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D]" />
             <p className="text-xs text-[#A09080] mt-2">💡 Google DriveのリンクはURLをそのまま貼り付けてください</p>
