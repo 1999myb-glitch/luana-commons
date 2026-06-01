@@ -20,11 +20,22 @@ export default function NewPost() {
   const [body, setBody] = useState('')
   const [author, setAuthor] = useState('')
   const [tags, setTags] = useState<string[]>([])
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkLabel, setLinkLabel] = useState('')
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   function toggleTag(tag: string) {
     setTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+  }
+
+  function handleImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
   }
 
   async function handleSubmit() {
@@ -34,8 +45,33 @@ export default function NewPost() {
     setError('')
     setLoading(true)
     const supabase = createClient()
+
+    let imageUrl = ''
+    if (imageFile) {
+      const ext = imageFile.name.split('.').pop()
+      const path = `${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('post-images')
+        .upload(path, imageFile, { contentType: imageFile.type })
+      if (uploadError) {
+        setLoading(false)
+        return setError('画像のアップロードに失敗しました')
+      }
+      const { data } = supabase.storage.from('post-images').getPublicUrl(path)
+      imageUrl = data.publicUrl
+    }
+
+    const finalBody = linkUrl
+      ? `${body}\n\n📎 [${linkLabel || linkUrl}](${linkUrl})`
+      : body
+
     const { error } = await supabase.from('posts').insert({
-      title, body, category, author_name: author, image_urls: [], likes_count: 0,
+      title,
+      body: finalBody,
+      category,
+      author_name: author,
+      image_urls: imageUrl ? [imageUrl] : [],
+      likes_count: 0,
     })
     setLoading(false)
     if (error) return setError('投稿に失敗しました: ' + error.message)
@@ -70,6 +106,32 @@ export default function NewPost() {
           <div>
             <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">BODY *</label>
             <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="内容を入力..." rows={8} className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D] resize-none" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">IMAGE（画像アップロード）</label>
+            <div className="w-full bg-white border-2 border-dashed border-[#D6C4A8] rounded-xl p-6 text-center">
+              {imagePreview ? (
+                <div>
+                  <img src={imagePreview} alt="preview" className="max-h-48 mx-auto rounded-lg mb-3 object-cover" />
+                  <button onClick={() => { setImageFile(null); setImagePreview('') }} className="text-xs text-[#A09080] underline">削除</button>
+                </div>
+              ) : (
+                <label className="cursor-pointer">
+                  <div className="text-3xl mb-2">📷</div>
+                  <p className="text-sm text-[#A09080]">クリックして画像を選択</p>
+                  <p className="text-xs text-[#C0B0A0] mt-1">JPG, PNG, GIF対応</p>
+                  <input type="file" accept="image/*" onChange={handleImage} className="hidden" />
+                </label>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">📎 リンク添付（Google Drive・PDF・URL）</label>
+            <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://drive.google.com/... または任意のURL" className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D] mb-2" />
+            <input value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="リンクの表示名（例：資料はこちら）" className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D]" />
+            <p className="text-xs text-[#A09080] mt-2">💡 Google DriveのリンクはURLをそのまま貼り付けてください</p>
           </div>
 
           <div>
