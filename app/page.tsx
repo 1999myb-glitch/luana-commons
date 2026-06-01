@@ -1,65 +1,91 @@
-import Image from "next/image";
+import { createClient } from '@/lib/supabase/server'
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: { category?: string }
+}) {
+  const supabase = await createClient()
+  const category = searchParams.category
+
+  let query = supabase
+    .from('posts')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (category && category !== 'all') {
+    query = query.eq('category', category)
+  }
+
+  const { data: posts } = await query
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="min-h-screen bg-[#F6F2EC]">
+      <div className="max-w-2xl mx-auto px-4 pb-20">
+        {/* Header */}
+        <header className="py-5 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-[#8A6F4D] flex items-center justify-center text-white text-sm">
+            ☕
+          </div>
+          <h1 className="text-lg font-black text-[#2C2C2C]"
+            style={{ fontFamily: 'serif' }}>
+            Luana Commons
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+        </header>
+
+        {/* Category Nav */}
+        <nav className="flex gap-0 overflow-x-auto border-b border-[#EDE8E0] mb-6">
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'notice', label: 'お知らせ' },
+            { id: 'project', label: 'プロジェクト' },
+            { id: 'learning', label: 'Learning' },
+            { id: 'meeting', label: 'Meeting Notes' },
+            { id: 'knowledge', label: 'Knowledge Base' },
+          ].map((cat) => (
+            
+              key={cat.id}
+              href={`/?category=${cat.id}`}
+              className={`px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                (category || 'all') === cat.id
+                  ? 'border-[#8A6F4D] text-[#8A6F4D] font-bold'
+                  : 'border-transparent text-[#8A7A6A]'
+              }`}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              {cat.label}
+            </a>
+          ))}
+        </nav>
+
+        {/* Posts */}
+        <div className="flex flex-col gap-3">
+          {posts && posts.length > 0 ? (
+            posts.map((post) => (
+              <article
+                key={post.id}
+                className="bg-white border border-[#EDE8E0] rounded-2xl p-5"
+              >
+                <div className="text-xs font-bold text-[#8A6F4D] mb-2">
+                  {post.category}
+                </div>
+                <h2 className="text-sm font-bold text-[#2C2C2C] leading-relaxed mb-3">
+                  {post.title}
+                </h2>
+                <div className="flex items-center gap-2 text-xs text-[#A09080]">
+                  <span>{post.author_name}</span>
+                  <span>·</span>
+                  <span>{new Date(post.created_at).toLocaleDateString('ja-JP')}</span>
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="text-center py-16 text-[#C0B0A0]">
+              <div className="text-4xl mb-3">☕</div>
+              <p className="text-sm">まだ投稿がありません</p>
+            </div>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+      </div>
+    </main>
+  )
 }
