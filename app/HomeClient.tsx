@@ -236,7 +236,7 @@ export default function HomeClient({ initialPosts }: { initialPosts: any[] }) {
     if (liked.includes(id)) return
     setLiked(p=>[...p,id])
     const supabase = createClient()
-    await supabase.from("likes").insert({ post_id:id, user_id:"anonymous" }).catch(()=>{})
+    supabase.from("likes").insert({ post_id:id, user_id:"anonymous" }).then(null, ()=>{})
     setPosts(p=>p.map((x:any)=>x.id===id?{...x,likes_count:(x.likes_count||0)+1}:x))
     if (openPost?.id===id) setOpenPost((p:any)=>({...p,likes_count:(p.likes_count||0)+1}))
   }
