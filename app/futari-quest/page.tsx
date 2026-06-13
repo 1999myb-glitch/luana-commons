@@ -13,35 +13,27 @@ export default function FutariQuestTopPage() {
         <p className="mt-3 text-sm text-[#BBA697]">二人でやりたいことを叶える、ふたりだけの冒険ノート</p>
       </div>
 
-      <div className="flex w-full max-w-sm flex-col gap-5">
-        {PLAYERS.map((player) => (
-          <Link
-            key={player.id}
-            href={`/futari-quest/${player.id}`}
-            className="group block rounded-3xl border-2 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:shadow-lg"
-            style={{ borderColor: player.light }}
-          >
-            <div className="flex items-center gap-4">
-              <div
-                className="flex h-16 w-16 items-center justify-center rounded-2xl text-3xl"
-                style={{ background: player.light }}
-              >
+      <div className="mb-10 flex w-full max-w-sm items-center justify-center gap-4 rounded-3xl border-2 border-[#FDEAF1] bg-white p-6 shadow-sm">
+        {PLAYERS.map((player, i) => (
+          <div key={player.name} className="flex flex-1 items-center justify-center gap-4">
+            <div className="flex flex-col items-center gap-2">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#FDEAF1] text-3xl">
                 {player.emoji}
               </div>
-              <div className="flex-1">
-                <p className="text-lg font-black text-[#6B5547]">{player.name}</p>
-                <p className="mt-1 text-xs text-[#BBA697]">冒険をはじめる →</p>
-              </div>
-              <span
-                className="text-2xl transition-transform group-hover:translate-x-1"
-                style={{ color: player.accent }}
-              >
-                ▶
-              </span>
+              <p className="text-base font-black text-[#6B5547]">{player.name}</p>
             </div>
-          </Link>
+            {i === 0 && <span className="text-xl font-black text-[#F2A0C4]">✕</span>}
+          </div>
         ))}
       </div>
+
+      <Link
+        href="/futari-quest/quest"
+        className="block w-full max-w-sm rounded-full px-8 py-4 text-center text-base font-black text-white shadow-md transition-transform active:scale-95"
+        style={{ background: '#F2A0C4' }}
+      >
+        二人のやりたいことリストへ →
+      </Link>
 
       <p className="mt-12 text-xs text-[#D9C7BC]">💌 ふたりだけのリストで、毎日を楽しく</p>
     </main>

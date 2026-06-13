@@ -1,21 +1,17 @@
-export type PlayerId = 'ami' | 'miyabi'
-
 export interface Player {
-  id: PlayerId
   name: string
   emoji: string
-  accent: string
-  light: string
 }
 
 export const PLAYERS: Player[] = [
-  { id: 'ami', name: 'あみ', emoji: '🍃', accent: '#9ECBAC', light: '#E8F5EC' },
-  { id: 'miyabi', name: 'みやび', emoji: '💧', accent: '#92C6E2', light: '#E7F4FA' },
+  { name: 'あみ', emoji: '🍃' },
+  { name: 'みやび', emoji: '💧' },
 ]
 
-export function getPlayer(id: string): Player | undefined {
-  return PLAYERS.find((p) => p.id === id)
-}
+export const THEME = {
+  accent: '#F2A0C4',
+  light: '#FDEAF1',
+} as const
 
 export const EXP_PER_QUEST = 10
 export const EXP_PER_LEVEL = 50

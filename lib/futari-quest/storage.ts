@@ -5,21 +5,21 @@ export interface QuestItem {
   createdAt: number
 }
 
-export interface PlayerProgress {
+export interface QuestProgress {
   items: QuestItem[]
   exp: number
   completedCount: number
 }
 
-const STORAGE_PREFIX = 'futari-quest:'
+const STORAGE_KEY = 'futari-quest:shared'
 
-const EMPTY_PROGRESS: PlayerProgress = { items: [], exp: 0, completedCount: 0 }
+const EMPTY_PROGRESS: QuestProgress = { items: [], exp: 0, completedCount: 0 }
 
-function readFromStorage(playerId: string): PlayerProgress {
+function readFromStorage(): QuestProgress {
   try {
-    const raw = window.localStorage.getItem(STORAGE_PREFIX + playerId)
+    const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return EMPTY_PROGRESS
-    const parsed = JSON.parse(raw) as Partial<PlayerProgress>
+    const parsed = JSON.parse(raw) as Partial<QuestProgress>
     return {
       items: Array.isArray(parsed.items) ? parsed.items : [],
       exp: typeof parsed.exp === 'number' ? parsed.exp : 0,
@@ -30,41 +30,32 @@ function readFromStorage(playerId: string): PlayerProgress {
   }
 }
 
-const cache = new Map<string, PlayerProgress>()
-const listeners = new Map<string, Set<() => void>>()
+let cache: QuestProgress | null = null
+const listeners = new Set<() => void>()
 
-function getCached(playerId: string): PlayerProgress {
-  let value = cache.get(playerId)
-  if (!value) {
-    value = readFromStorage(playerId)
-    cache.set(playerId, value)
-  }
-  return value
+function getCached(): QuestProgress {
+  if (!cache) cache = readFromStorage()
+  return cache
 }
 
 /** Client-side snapshot for `useSyncExternalStore`. */
-export function getProgressSnapshot(playerId: string): PlayerProgress {
-  return getCached(playerId)
+export function getProgressSnapshot(): QuestProgress {
+  return getCached()
 }
 
 /** Server-side snapshot for `useSyncExternalStore` (localStorage isn't available during SSR). */
-export function getServerProgressSnapshot(): PlayerProgress {
+export function getServerProgressSnapshot(): QuestProgress {
   return EMPTY_PROGRESS
 }
 
-export function subscribeProgress(playerId: string, onChange: () => void): () => void {
-  let set = listeners.get(playerId)
-  if (!set) {
-    set = new Set()
-    listeners.set(playerId, set)
-  }
-  set.add(onChange)
-  return () => set.delete(onChange)
+export function subscribeProgress(onChange: () => void): () => void {
+  listeners.add(onChange)
+  return () => listeners.delete(onChange)
 }
 
-export function updateProgress(playerId: string, updater: (prev: PlayerProgress) => PlayerProgress): void {
-  const next = updater(getCached(playerId))
-  cache.set(playerId, next)
-  window.localStorage.setItem(STORAGE_PREFIX + playerId, JSON.stringify(next))
-  listeners.get(playerId)?.forEach((cb) => cb())
+export function updateProgress(updater: (prev: QuestProgress) => QuestProgress): void {
+  const next = updater(getCached())
+  cache = next
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  listeners.forEach((cb) => cb())
 }

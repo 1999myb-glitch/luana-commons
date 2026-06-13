@@ -2,13 +2,12 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
-import { EXP_PER_QUEST, getLevel, getLevelProgress, type Player } from '@/lib/futari-quest/constants'
+import { EXP_PER_QUEST, PLAYERS, THEME, getLevel, getLevelProgress } from '@/lib/futari-quest/constants'
 import {
   getProgressSnapshot,
   getServerProgressSnapshot,
   subscribeProgress,
   updateProgress,
-  type PlayerProgress,
   type QuestItem,
 } from '@/lib/futari-quest/storage'
 
@@ -16,19 +15,17 @@ const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
 
 function QuestRow({
   item,
-  accent,
   onToggle,
   onRemove,
 }: {
   item: QuestItem
-  accent: string
   onToggle: (id: string) => void
   onRemove: (id: string) => void
 }) {
   return (
     <div
       className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-3 ${
-        item.completed ? 'border-[#F4EBE3] bg-[#FBF7F2]' : 'border-[#F1E7DD] bg-white'
+        item.completed ? 'border-[#F4EBE3] bg-[#FBF7F2]' : 'border-[#FDEAF1] bg-white'
       }`}
     >
       <button
@@ -36,8 +33,8 @@ function QuestRow({
         aria-label={item.completed ? '未完了にする' : '完了にする'}
         className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 text-xs font-black text-white transition-colors"
         style={{
-          borderColor: item.completed ? accent : '#E8D5C8',
-          background: item.completed ? accent : 'transparent',
+          borderColor: item.completed ? THEME.accent : '#E8D5C8',
+          background: item.completed ? THEME.accent : 'transparent',
         }}
       >
         {item.completed ? '✓' : ''}
@@ -52,12 +49,8 @@ function QuestRow({
   )
 }
 
-export default function PersonClient({ player }: { player: Player }) {
-  const progress = useSyncExternalStore(
-    (onChange) => subscribeProgress(player.id, onChange),
-    () => getProgressSnapshot(player.id),
-    getServerProgressSnapshot
-  )
+export default function FutariQuestListPage() {
+  const progress = useSyncExternalStore(subscribeProgress, getProgressSnapshot, getServerProgressSnapshot)
   const [newText, setNewText] = useState('')
   const [levelUp, setLevelUp] = useState(false)
   const [diceFace, setDiceFace] = useState(0)
@@ -72,21 +65,17 @@ export default function PersonClient({ player }: { player: Player }) {
     }
   }, [])
 
-  function update(updater: (prev: PlayerProgress) => PlayerProgress) {
-    updateProgress(player.id, updater)
-  }
-
   function handleAdd(e: React.FormEvent) {
     e.preventDefault()
     const text = newText.trim()
     if (!text) return
     const item: QuestItem = { id: crypto.randomUUID(), text, completed: false, createdAt: Date.now() }
-    update((prev) => ({ ...prev, items: [...prev.items, item] }))
+    updateProgress((prev) => ({ ...prev, items: [...prev.items, item] }))
     setNewText('')
   }
 
   function toggleItem(id: string) {
-    update((prev) => {
+    updateProgress((prev) => {
       const target = prev.items.find((i) => i.id === id)
       if (!target) return prev
       const becomingComplete = !target.completed
@@ -103,7 +92,7 @@ export default function PersonClient({ player }: { player: Player }) {
   }
 
   function removeItem(id: string) {
-    update((prev) => ({ ...prev, items: prev.items.filter((i) => i.id !== id) }))
+    updateProgress((prev) => ({ ...prev, items: prev.items.filter((i) => i.id !== id) }))
     if (diceResult?.id === id) setDiceResult(null)
   }
 
@@ -135,19 +124,14 @@ export default function PersonClient({ player }: { player: Player }) {
   const incompleteCount = progress.items.filter((i) => !i.completed).length
 
   return (
-    <main
-      className="min-h-screen bg-[#FFF8F3] pb-16"
-      style={{ '--fq-accent': player.accent, '--fq-light': player.light } as React.CSSProperties}
-    >
+    <main className="min-h-screen bg-[#FFF8F3] pb-16">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Noto+Serif+JP:wght@900&display=swap');
         @keyframes fq-pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.08); opacity: 1 } 100% { transform: scale(1) } }
         @keyframes fq-shake { 0%, 100% { transform: translateY(0) rotate(0deg) } 50% { transform: translateY(-6px) rotate(8deg) } }
         .fq-pop { animation: fq-pop .4s ease-out; }
         .fq-roll { display: inline-block; animation: fq-shake .25s ease-in-out infinite; }
-        .fq-input:focus { border-color: var(--fq-accent); }
-        .fq-levelup { border-color: var(--fq-accent); background: var(--fq-light); }
-        .fq-exp-track { background: var(--fq-light); }
+        .fq-input:focus { border-color: ${THEME.accent}; }
       `}</style>
 
       <div className="mx-auto max-w-md px-4 pt-6">
@@ -155,40 +139,42 @@ export default function PersonClient({ player }: { player: Player }) {
           <Link
             href="/futari-quest"
             aria-label="トップに戻る"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 border-[#F1E7DD] bg-white text-[#BBA697]"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 border-[#FDEAF1] bg-white text-[#BBA697]"
           >
             ←
           </Link>
           <h1 className="text-lg font-black text-[#6B5547]" style={{ fontFamily: "'Noto Serif JP', serif" }}>
-            {player.emoji} {player.name}の冒険
+            🎒 ふたりの冒険ノート
           </h1>
         </header>
 
-        <section className="mb-5 rounded-3xl border-2 bg-white p-5" style={{ borderColor: player.light }}>
+        <section className="mb-5 rounded-3xl border-2 bg-white p-5" style={{ borderColor: THEME.light }}>
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
                 className="flex h-14 w-14 items-center justify-center rounded-2xl text-lg font-black text-white"
-                style={{ background: player.accent, fontFamily: "'Yusei Magic', sans-serif" }}
+                style={{ background: THEME.accent, fontFamily: "'Yusei Magic', sans-serif" }}
               >
                 Lv{level}
               </div>
               <div>
                 <p className="text-[11px] font-bold tracking-widest text-[#BBA697]">LEVEL</p>
-                <p className="text-base font-black text-[#6B5547]">{player.name}の冒険ノート</p>
+                <p className="text-base font-black text-[#6B5547]">
+                  {PLAYERS.map((p) => p.emoji).join(' ')} {PLAYERS.map((p) => p.name).join(' ✕ ')}
+                </p>
               </div>
             </div>
             <div className="text-right">
               <p className="text-[11px] font-bold tracking-widest text-[#BBA697]">達成数</p>
-              <p className="text-xl font-black" style={{ color: player.accent }}>
+              <p className="text-xl font-black" style={{ color: THEME.accent }}>
                 {progress.completedCount}
               </p>
             </div>
           </div>
-          <div className="fq-exp-track h-3 w-full overflow-hidden rounded-full">
+          <div className="h-3 w-full overflow-hidden rounded-full" style={{ background: THEME.light }}>
             <div
               className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${percent}%`, background: player.accent }}
+              style={{ width: `${percent}%`, background: THEME.accent }}
             />
           </div>
           <p className="mt-1 text-right text-[11px] text-[#BBA697]">
@@ -197,7 +183,10 @@ export default function PersonClient({ player }: { player: Player }) {
         </section>
 
         {levelUp && (
-          <div className="fq-pop fq-levelup mb-5 rounded-2xl border-2 p-4 text-center">
+          <div
+            className="fq-pop mb-5 rounded-2xl border-2 p-4 text-center"
+            style={{ borderColor: THEME.accent, background: THEME.light }}
+          >
             <p className="text-sm font-black text-[#6B5547]">🎉 レベルアップ！ Lv.{level} になりました</p>
           </div>
         )}
@@ -207,24 +196,24 @@ export default function PersonClient({ player }: { player: Player }) {
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             placeholder="やりたいことを追加..."
-            className="fq-input flex-1 rounded-2xl border-2 border-[#F1E7DD] bg-white px-4 py-3 text-sm text-[#6B5547] outline-none"
+            className="fq-input flex-1 rounded-2xl border-2 border-[#FDEAF1] bg-white px-4 py-3 text-sm text-[#6B5547] outline-none"
           />
           <button
             type="submit"
             className="rounded-2xl px-5 py-3 text-sm font-bold text-white"
-            style={{ background: player.accent }}
+            style={{ background: THEME.accent }}
           >
             追加
           </button>
         </form>
 
-        <section className="mb-5 rounded-3xl border-2 p-5 text-center" style={{ borderColor: player.light }}>
+        <section className="mb-5 rounded-3xl border-2 p-5 text-center" style={{ borderColor: THEME.light }}>
           <p className="mb-3 text-[11px] font-bold tracking-widest text-[#BBA697]">QUEST DICE・未完了 {incompleteCount}件</p>
           <button
             onClick={rollDice}
             disabled={rolling}
             className="rounded-full px-8 py-3 text-sm font-bold text-white shadow-sm transition-transform active:scale-95 disabled:opacity-60"
-            style={{ background: player.accent }}
+            style={{ background: THEME.accent }}
           >
             🎲 サイコロを振る
           </button>
@@ -246,14 +235,14 @@ export default function PersonClient({ player }: { player: Player }) {
           {progress.items.length === 0 ? (
             <div
               className="rounded-3xl border-2 border-dashed py-10 text-center text-sm text-[#D9C7BC]"
-              style={{ borderColor: player.light }}
+              style={{ borderColor: THEME.light }}
             >
               やりたいことを追加してみよう ✨
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               {progress.items.map((item) => (
-                <QuestRow key={item.id} item={item} accent={player.accent} onToggle={toggleItem} onRemove={removeItem} />
+                <QuestRow key={item.id} item={item} onToggle={toggleItem} onRemove={removeItem} />
               ))}
             </div>
           )}
