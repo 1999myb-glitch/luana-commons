@@ -1,4 +1,4 @@
-export type PlayerId = 'a' | 'b'
+export type PlayerId = 'ami' | 'miyabi'
 
 export interface Player {
   id: PlayerId
@@ -9,8 +9,8 @@ export interface Player {
 }
 
 export const PLAYERS: Player[] = [
-  { id: 'a', name: 'Aさん', emoji: '🌸', accent: '#F2A0C4', light: '#FDEAF1' },
-  { id: 'b', name: 'Bさん', emoji: '🍪', accent: '#B9905F', light: '#F7EEE1' },
+  { id: 'ami', name: 'あみ', emoji: '🍃', accent: '#9ECBAC', light: '#E8F5EC' },
+  { id: 'miyabi', name: 'みやび', emoji: '💧', accent: '#92C6E2', light: '#E7F4FA' },
 ]
 
 export function getPlayer(id: string): Player | undefined {

@@ -28,7 +28,7 @@ function QuestRow({
   return (
     <div
       className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-3 ${
-        item.completed ? 'border-[#F4EBE3] bg-[#FBF7F2]' : 'border-[#FDEAF1] bg-white'
+        item.completed ? 'border-[#F4EBE3] bg-[#FBF7F2]' : 'border-[#F1E7DD] bg-white'
       }`}
     >
       <button
@@ -135,13 +135,19 @@ export default function PersonClient({ player }: { player: Player }) {
   const incompleteCount = progress.items.filter((i) => !i.completed).length
 
   return (
-    <main className="min-h-screen bg-[#FFF8F3] pb-16">
+    <main
+      className="min-h-screen bg-[#FFF8F3] pb-16"
+      style={{ '--fq-accent': player.accent, '--fq-light': player.light } as React.CSSProperties}
+    >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Noto+Serif+JP:wght@900&display=swap');
         @keyframes fq-pop { 0% { transform: scale(.6); opacity: 0 } 60% { transform: scale(1.08); opacity: 1 } 100% { transform: scale(1) } }
         @keyframes fq-shake { 0%, 100% { transform: translateY(0) rotate(0deg) } 50% { transform: translateY(-6px) rotate(8deg) } }
         .fq-pop { animation: fq-pop .4s ease-out; }
         .fq-roll { display: inline-block; animation: fq-shake .25s ease-in-out infinite; }
+        .fq-input:focus { border-color: var(--fq-accent); }
+        .fq-levelup { border-color: var(--fq-accent); background: var(--fq-light); }
+        .fq-exp-track { background: var(--fq-light); }
       `}</style>
 
       <div className="mx-auto max-w-md px-4 pt-6">
@@ -149,7 +155,7 @@ export default function PersonClient({ player }: { player: Player }) {
           <Link
             href="/futari-quest"
             aria-label="トップに戻る"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 border-[#FDEAF1] bg-white text-[#BBA697]"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border-2 border-[#F1E7DD] bg-white text-[#BBA697]"
           >
             ←
           </Link>
@@ -179,7 +185,7 @@ export default function PersonClient({ player }: { player: Player }) {
               </p>
             </div>
           </div>
-          <div className="h-3 w-full overflow-hidden rounded-full bg-[#FBF1F5]">
+          <div className="fq-exp-track h-3 w-full overflow-hidden rounded-full">
             <div
               className="h-full rounded-full transition-all duration-500"
               style={{ width: `${percent}%`, background: player.accent }}
@@ -191,7 +197,7 @@ export default function PersonClient({ player }: { player: Player }) {
         </section>
 
         {levelUp && (
-          <div className="fq-pop mb-5 rounded-2xl border-2 border-[#F2A0C4] bg-[#FDEAF1] p-4 text-center">
+          <div className="fq-pop fq-levelup mb-5 rounded-2xl border-2 p-4 text-center">
             <p className="text-sm font-black text-[#6B5547]">🎉 レベルアップ！ Lv.{level} になりました</p>
           </div>
         )}
@@ -201,7 +207,7 @@ export default function PersonClient({ player }: { player: Player }) {
             value={newText}
             onChange={(e) => setNewText(e.target.value)}
             placeholder="やりたいことを追加..."
-            className="flex-1 rounded-2xl border-2 border-[#FDEAF1] bg-white px-4 py-3 text-sm text-[#6B5547] outline-none focus:border-[#F2A0C4]"
+            className="fq-input flex-1 rounded-2xl border-2 border-[#F1E7DD] bg-white px-4 py-3 text-sm text-[#6B5547] outline-none"
           />
           <button
             type="submit"

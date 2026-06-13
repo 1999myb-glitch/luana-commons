@@ -6,7 +6,7 @@ export default function FutariQuestTopPage() {
     <main className="min-h-screen bg-[#FFF8F3] flex flex-col items-center px-4 py-14">
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Yusei+Magic&family=Noto+Serif+JP:wght@900&display=swap');`}</style>
       <div className="mb-10 text-center">
-        <p className="mb-2 text-xs font-bold tracking-[0.3em] text-[#F2A0C4]">TWO PLAYER ADVENTURE</p>
+        <p className="mb-2 text-xs font-bold tracking-[0.3em] text-[#BBA697]">TWO PLAYER ADVENTURE</p>
         <h1 className="text-4xl font-black text-[#6B5547]" style={{ fontFamily: "'Noto Serif JP', serif" }}>
           🎲 Futari Quest
         </h1>
