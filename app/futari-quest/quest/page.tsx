@@ -18,7 +18,6 @@ import {
   completeQuestItem,
   getProgressSnapshot,
   getServerProgressSnapshot,
-  setCurrentPlayer,
   subscribeProgress,
   updateProgress,
   redeemWishTicket,
@@ -112,7 +111,7 @@ export default function FutariQuestListPage() {
   }
 
   function selectPlayer(id: PlayerId) {
-    setCurrentPlayer(id)
+    updateProgress((prev) => ({ ...prev, currentPlayerId: id }))
   }
 
   function applyWish(effect: WishEffect) {

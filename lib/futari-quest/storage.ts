@@ -83,7 +83,6 @@ export interface QuestProgress {
 }
 
 const STORAGE_KEY = 'futari-quest:shared'
-const PLAYER_KEY = 'futari-quest:player'
 const TABLE = 'futari_quest_progress'
 const ROW_ID = 'shared'
 
@@ -106,15 +105,6 @@ const EMPTY_PROGRESS: QuestProgress = {
   currentPlayerId: 'amy',
 }
 
-/** Which player this device is currently acting as. Always device-local, never synced. */
-function readPlayerId(): PlayerId {
-  try {
-    return window.localStorage.getItem(PLAYER_KEY) === 'miyabi' ? 'miyabi' : 'amy'
-  } catch {
-    return 'amy'
-  }
-}
-
 /** Fills in defaults for any missing/invalid fields, e.g. from older localStorage shapes or remote data. */
 function normalizeProgress(parsed: Partial<QuestProgress> | null | undefined): QuestProgress {
   const p = parsed ?? {}
@@ -135,7 +125,7 @@ function normalizeProgress(parsed: Partial<QuestProgress> | null | undefined): Q
     companionBoostRemaining: typeof p.companionBoostRemaining === 'number' ? p.companionBoostRemaining : 0,
     activity: Array.isArray(p.activity) ? p.activity : [],
     themeColors: { ...DEFAULT_THEME_COLORS, ...(p.themeColors ?? {}) },
-    currentPlayerId: readPlayerId(),
+    currentPlayerId: p.currentPlayerId === 'miyabi' ? 'miyabi' : 'amy',
   }
 }
 
@@ -251,17 +241,6 @@ export function updateProgress(updater: (prev: QuestProgress) => QuestProgress):
   if (client) {
     client.from(TABLE).upsert({ id: ROW_ID, data: next, updated_at: new Date().toISOString() }).then(() => {})
   }
-}
-
-/** Sets which player this device is acting as. Device-local only, never synced to the shared row. */
-export function setCurrentPlayer(id: PlayerId): void {
-  try {
-    window.localStorage.setItem(PLAYER_KEY, id)
-  } catch {
-    // ignore (e.g. storage disabled)
-  }
-  cache = { ...getCached(), currentPlayerId: id }
-  notify()
 }
 
 /* ---------------------------------------------------------------------- */

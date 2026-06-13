@@ -13,7 +13,7 @@ import {
   getStageProgress,
   getThemeColor,
 } from '@/lib/futari-quest/constants'
-import { getProgressSnapshot, getServerProgressSnapshot, setCurrentPlayer, subscribeProgress } from '@/lib/futari-quest/storage'
+import { getProgressSnapshot, getServerProgressSnapshot, subscribeProgress, updateProgress } from '@/lib/futari-quest/storage'
 import { FQ_GLOBAL_STYLES } from '@/lib/futari-quest/styles'
 import BottomNav from './_components/BottomNav'
 import { ActivityFeed } from './_components/ActivityFeed'
@@ -27,7 +27,7 @@ export default function FutariQuestHomePage() {
   const speciesCount = new Set(progress.companions.map((c) => c.speciesId)).size
 
   function selectPlayer(id: (typeof PLAYERS)[number]['id']) {
-    setCurrentPlayer(id)
+    updateProgress((prev) => ({ ...prev, currentPlayerId: id }))
   }
 
   return (
