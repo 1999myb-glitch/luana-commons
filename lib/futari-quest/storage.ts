@@ -1,3 +1,4 @@
+import { createClient } from '@/lib/supabase/client'
 import {
   AWAKENING_LEVELS,
   COMPANION_BOOST_COUNT,
@@ -82,6 +83,9 @@ export interface QuestProgress {
 }
 
 const STORAGE_KEY = 'futari-quest:shared'
+const PLAYER_KEY = 'futari-quest:player'
+const TABLE = 'futari_quest_progress'
+const ROW_ID = 'shared'
 
 const EMPTY_PROGRESS: QuestProgress = {
   items: [],
@@ -102,40 +106,63 @@ const EMPTY_PROGRESS: QuestProgress = {
   currentPlayerId: 'amy',
 }
 
-function readFromStorage(): QuestProgress {
+/** Which player this device is currently acting as. Always device-local, never synced. */
+function readPlayerId(): PlayerId {
+  try {
+    return window.localStorage.getItem(PLAYER_KEY) === 'miyabi' ? 'miyabi' : 'amy'
+  } catch {
+    return 'amy'
+  }
+}
+
+/** Fills in defaults for any missing/invalid fields, e.g. from older localStorage shapes or remote data. */
+function normalizeProgress(parsed: Partial<QuestProgress> | null | undefined): QuestProgress {
+  const p = parsed ?? {}
+  return {
+    items: Array.isArray(p.items) ? p.items : [],
+    exp: typeof p.exp === 'number' ? p.exp : 0,
+    completedCount: typeof p.completedCount === 'number' ? p.completedCount : 0,
+    energy: typeof p.energy === 'number' ? p.energy : 0,
+    companions: Array.isArray(p.companions) ? p.companions : [],
+    wishTickets: typeof p.wishTickets === 'number' ? p.wishTickets : 0,
+    badges: Array.isArray(p.badges) ? p.badges : [],
+    titles: Array.isArray(p.titles) ? p.titles : [],
+    friendshipCombos: typeof p.friendshipCombos === 'number' ? p.friendshipCombos : 0,
+    lastCompletionDate:
+      typeof p.lastCompletionDate === 'object' && p.lastCompletionDate ? p.lastCompletionDate : {},
+    awakeningsShown: Array.isArray(p.awakeningsShown) ? p.awakeningsShown : [],
+    superAwakenings: typeof p.superAwakenings === 'number' ? p.superAwakenings : 0,
+    companionBoostRemaining: typeof p.companionBoostRemaining === 'number' ? p.companionBoostRemaining : 0,
+    activity: Array.isArray(p.activity) ? p.activity : [],
+    themeColors: { ...DEFAULT_THEME_COLORS, ...(p.themeColors ?? {}) },
+    currentPlayerId: readPlayerId(),
+  }
+}
+
+function readLocalCache(): QuestProgress {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return EMPTY_PROGRESS
-    const parsed = JSON.parse(raw) as Partial<QuestProgress>
-    return {
-      items: Array.isArray(parsed.items) ? parsed.items : [],
-      exp: typeof parsed.exp === 'number' ? parsed.exp : 0,
-      completedCount: typeof parsed.completedCount === 'number' ? parsed.completedCount : 0,
-      energy: typeof parsed.energy === 'number' ? parsed.energy : 0,
-      companions: Array.isArray(parsed.companions) ? parsed.companions : [],
-      wishTickets: typeof parsed.wishTickets === 'number' ? parsed.wishTickets : 0,
-      badges: Array.isArray(parsed.badges) ? parsed.badges : [],
-      titles: Array.isArray(parsed.titles) ? parsed.titles : [],
-      friendshipCombos: typeof parsed.friendshipCombos === 'number' ? parsed.friendshipCombos : 0,
-      lastCompletionDate:
-        typeof parsed.lastCompletionDate === 'object' && parsed.lastCompletionDate ? parsed.lastCompletionDate : {},
-      awakeningsShown: Array.isArray(parsed.awakeningsShown) ? parsed.awakeningsShown : [],
-      superAwakenings: typeof parsed.superAwakenings === 'number' ? parsed.superAwakenings : 0,
-      companionBoostRemaining: typeof parsed.companionBoostRemaining === 'number' ? parsed.companionBoostRemaining : 0,
-      activity: Array.isArray(parsed.activity) ? parsed.activity : [],
-      themeColors: { ...DEFAULT_THEME_COLORS, ...(parsed.themeColors ?? {}) },
-      currentPlayerId: parsed.currentPlayerId === 'miyabi' ? 'miyabi' : 'amy',
-    }
+    return normalizeProgress(raw ? (JSON.parse(raw) as Partial<QuestProgress>) : null)
   } catch {
-    return EMPTY_PROGRESS
+    return normalizeProgress(null)
+  }
+}
+
+function writeLocalCache(progress: QuestProgress): void {
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress))
+  } catch {
+    // ignore (e.g. storage disabled)
   }
 }
 
 let cache: QuestProgress | null = null
 const listeners = new Set<() => void>()
+let remoteInitialized = false
+let supabase: ReturnType<typeof createClient> | null | undefined
 
 function getCached(): QuestProgress {
-  if (!cache) cache = readFromStorage()
+  if (!cache) cache = readLocalCache()
   return cache
 }
 
@@ -149,16 +176,92 @@ export function getServerProgressSnapshot(): QuestProgress {
   return EMPTY_PROGRESS
 }
 
+function notify(): void {
+  listeners.forEach((cb) => cb())
+}
+
+/** Lazily creates the Supabase client; returns null if shared sync isn't configured for this deployment. */
+function getSupabase(): ReturnType<typeof createClient> | null {
+  if (supabase !== undefined) return supabase
+  try {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      supabase = null
+    } else {
+      supabase = createClient()
+    }
+  } catch {
+    supabase = null
+  }
+  return supabase
+}
+
+function applyRemote(data: unknown): void {
+  const remote = normalizeProgress(data as Partial<QuestProgress>)
+  cache = remote
+  writeLocalCache(remote)
+  notify()
+}
+
+/** Fetches the shared row once and subscribes to realtime updates from the other player's device. */
+function initRemote(): void {
+  if (remoteInitialized) return
+  remoteInitialized = true
+  const client = getSupabase()
+  if (!client) return
+
+  client
+    .from(TABLE)
+    .select('data')
+    .eq('id', ROW_ID)
+    .maybeSingle()
+    .then(({ data, error }) => {
+      if (!error && data?.data) {
+        applyRemote(data.data)
+      } else {
+        client.from(TABLE).upsert({ id: ROW_ID, data: getCached() }).then(() => {})
+      }
+    })
+
+  client
+    .channel('futari-quest-progress')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: TABLE, filter: `id=eq.${ROW_ID}` },
+      (payload) => {
+        const next = (payload.new as { data?: unknown } | null)?.data
+        if (next) applyRemote(next)
+      }
+    )
+    .subscribe()
+}
+
 export function subscribeProgress(onChange: () => void): () => void {
   listeners.add(onChange)
+  initRemote()
   return () => listeners.delete(onChange)
 }
 
 export function updateProgress(updater: (prev: QuestProgress) => QuestProgress): void {
   const next = updater(getCached())
   cache = next
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-  listeners.forEach((cb) => cb())
+  writeLocalCache(next)
+  notify()
+
+  const client = getSupabase()
+  if (client) {
+    client.from(TABLE).upsert({ id: ROW_ID, data: next, updated_at: new Date().toISOString() }).then(() => {})
+  }
+}
+
+/** Sets which player this device is acting as. Device-local only, never synced to the shared row. */
+export function setCurrentPlayer(id: PlayerId): void {
+  try {
+    window.localStorage.setItem(PLAYER_KEY, id)
+  } catch {
+    // ignore (e.g. storage disabled)
+  }
+  cache = { ...getCached(), currentPlayerId: id }
+  notify()
 }
 
 /* ---------------------------------------------------------------------- */
