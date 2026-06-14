@@ -117,7 +117,7 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
 
               <div>
                 <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">タスクリスト</p>
-                <TaskList meetingId={meeting.id} initialTasks={tasks} />
+                <TaskList meetingId={meeting.id} initialTasks={tasks} initialNotes={meeting.notes || ''} postId={meeting.post_id} />
               </div>
 
               {meeting.transcript && (

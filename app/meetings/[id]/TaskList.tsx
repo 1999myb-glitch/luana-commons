@@ -17,13 +17,49 @@ const PRIORITY_META: Record<string, { label: string; color: string; bg: string }
   low:    { label: '低', color: '#4FAF7A', bg: '#E8F6EF' },
 }
 
-export default function TaskList({ meetingId, initialTasks }: { meetingId: string; initialTasks: TaskItem[] }) {
+const PRIORITY_LABEL: Record<string, string> = { high: '高', medium: '中', low: '低' }
+
+function buildTaskSection(tasks: TaskItem[]): string {
+  const taskLines = tasks.map(task => {
+    const meta = [`優先度: ${PRIORITY_LABEL[task.priority] || task.priority}`]
+    if (task.assignee) meta.push(`担当: ${task.assignee}`)
+    if (task.due_date) meta.push(`納期: ${task.due_date}`)
+    return `${task.done ? '✅' : '・'}${task.title}（${meta.join(' / ')}）`
+  })
+  return `✅ タスクリスト\n${taskLines.join('\n')}`
+}
+
+function applyTaskSection(notes: string, tasks: TaskItem[]): string {
+  const section = buildTaskSection(tasks)
+  if (/✅ タスクリスト\n[\s\S]*?(?=\n\n|$)/.test(notes)) {
+    return notes.replace(/✅ タスクリスト\n[\s\S]*?(?=\n\n|$)/, section)
+  }
+  return notes ? `${notes}\n\n${section}` : section
+}
+
+export default function TaskList({
+  meetingId,
+  initialTasks,
+  initialNotes,
+  postId,
+}: {
+  meetingId: string
+  initialTasks: TaskItem[]
+  initialNotes: string
+  postId: string | null
+}) {
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
+  const [notes, setNotes] = useState(initialNotes)
 
   async function persist(next: TaskItem[]) {
     setTasks(next)
+    const newNotes = applyTaskSection(notes, next)
+    setNotes(newNotes)
     const supabase = createClient()
-    await supabase.from('meetings').update({ tasks: next }).eq('id', meetingId)
+    await supabase.from('meetings').update({ tasks: next, notes: newNotes }).eq('id', meetingId)
+    if (postId) {
+      await supabase.from('posts').update({ body: newNotes }).eq('id', postId)
+    }
   }
 
   if (tasks.length === 0) {
