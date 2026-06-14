@@ -32,61 +32,38 @@ export async function POST(request: NextRequest) {
     .eq('id', id)
     .single()
 
-  if (fetchError || !meeting) {
-    return Response.json({ error: 'meeting not found' }, { status: 404 })
+  if (fetchError || !meeting || !meeting.transcript) {
+    return Response.json({ error: 'meeting not found or transcript missing' }, { status: 404 })
   }
 
   try {
-    const audioRes = await fetch(meeting.audio_url)
-    const audioBlob = await audioRes.blob()
-
-    const whisperForm = new FormData()
-    whisperForm.append('file', audioBlob, 'audio.webm')
-    whisperForm.append('model', 'whisper-1')
-
-    const whisperRes = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-      body: whisperForm,
-    })
-
-    if (!whisperRes.ok) {
-      throw new Error(`Whisper APIエラー: ${whisperRes.status}`)
-    }
-
-    const whisperData = await whisperRes.json()
-    const transcript = whisperData.text as string
-
     const prompt = `以下は会議の文字起こしです。この内容を分析し、次のJSON形式のみを厳密に出力してください（説明文やコードブロックの記号は一切付けず、JSONのみを出力すること）。
 
 {"kgi": "最終目標(KGI)の説明", "kpi": "重要指標(KPI)の説明", "pdca": {"plan": "計画の内容", "do": "実行内容", "check": "評価内容", "act": "改善内容"}, "tasks": [{"title": "タスク名", "priority": "high または medium または low", "due_date": "YYYY-MM-DD形式、不明な場合は空文字", "assignee": "担当者・役割、不明な場合は空文字"}]}
 
 文字起こし:
-${transcript}`
+${meeting.transcript}`
 
-    const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    )
 
-    if (!claudeRes.ok) {
-      throw new Error(`Claude APIエラー: ${claudeRes.status}`)
+    if (!geminiRes.ok) {
+      throw new Error(`Gemini APIエラー: ${geminiRes.status}`)
     }
 
-    const claudeData = await claudeRes.json()
-    const responseText = claudeData.content[0].text as string
+    const geminiData = await geminiRes.json()
+    const responseText = geminiData.candidates[0].content.parts[0].text as string
     const jsonMatch = responseText.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
-      throw new Error('Claude APIの応答からJSONを抽出できませんでした')
+      throw new Error('Gemini APIの応答からJSONを抽出できませんでした')
     }
 
     const analysis: AnalysisResult = JSON.parse(jsonMatch[0])
@@ -94,7 +71,6 @@ ${transcript}`
     const { data: updated, error: updateError } = await supabase
       .from('meetings')
       .update({
-        transcript,
         kgi: analysis.kgi,
         kpi: analysis.kpi,
         pdca: analysis.pdca,

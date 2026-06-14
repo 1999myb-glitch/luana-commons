@@ -4,51 +4,112 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
+interface SpeechRecognitionResultLike {
+  isFinal: boolean
+  0: { transcript: string }
+}
+
+interface SpeechRecognitionEventLike {
+  resultIndex: number
+  results: ArrayLike<SpeechRecognitionResultLike>
+}
+
+interface SpeechRecognitionInstance {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null
+  onend: (() => void) | null
+  onerror: ((event: Event) => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type SpeechRecognitionCtor = new () => SpeechRecognitionInstance
+
+function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
+  const w = window as unknown as {
+    SpeechRecognition?: SpeechRecognitionCtor
+    webkitSpeechRecognition?: SpeechRecognitionCtor
+  }
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null
+}
+
 export default function NewMeeting() {
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [recording, setRecording] = useState(false)
   const [seconds, setSeconds] = useState(0)
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
-  const [audioUrl, setAudioUrl] = useState('')
+  const [transcript, setTranscript] = useState('')
+  const [interim, setInterim] = useState('')
   const [loading, setLoading] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState('')
   const [error, setError] = useState('')
 
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+  const transcriptRef = useRef('')
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recordingRef = useRef(false)
 
-  async function startRecording() {
+  function startRecording() {
     setError('')
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const recorder = new MediaRecorder(stream)
-      chunksRef.current = []
-      recorder.ondataavailable = e => {
-        if (e.data.size > 0) chunksRef.current.push(e.data)
-      }
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        setAudioBlob(blob)
-        setAudioUrl(URL.createObjectURL(blob))
-        stream.getTracks().forEach(track => track.stop())
-      }
-      recorder.start()
-      mediaRecorderRef.current = recorder
-      setRecording(true)
-      setSeconds(0)
-      setAudioBlob(null)
-      setAudioUrl('')
-      timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000)
-    } catch {
-      setError('マイクへのアクセスが許可されていません')
+    const Ctor = getSpeechRecognitionCtor()
+    if (!Ctor) {
+      setError('お使いのブラウザは音声入力に対応していません（Chrome推奨）')
+      return
     }
+
+    transcriptRef.current = ''
+    setTranscript('')
+    setInterim('')
+    setSeconds(0)
+
+    const recognition = new Ctor()
+    recognition.lang = 'ja-JP'
+    recognition.continuous = true
+    recognition.interimResults = true
+
+    recognition.onresult = (event) => {
+      let finalText = ''
+      let interimText = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i]
+        if (result.isFinal) {
+          finalText += result[0].transcript
+        } else {
+          interimText += result[0].transcript
+        }
+      }
+      if (finalText) {
+        transcriptRef.current += finalText
+        setTranscript(transcriptRef.current)
+      }
+      setInterim(interimText)
+    }
+
+    recognition.onerror = () => {
+      setError('音声認識中にエラーが発生しました')
+    }
+
+    recognition.onend = () => {
+      if (recognitionRef.current === recognition && recordingRef.current) {
+        recognition.start()
+      }
+    }
+
+    recognition.start()
+    recognitionRef.current = recognition
+    recordingRef.current = true
+    setRecording(true)
+    timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000)
   }
 
   function stopRecording() {
-    mediaRecorderRef.current?.stop()
+    recordingRef.current = false
     setRecording(false)
+    recognitionRef.current?.stop()
+    recognitionRef.current = null
+    setInterim('')
     if (timerRef.current) clearInterval(timerRef.current)
   }
 
@@ -59,28 +120,18 @@ export default function NewMeeting() {
   }
 
   async function handleSubmit() {
-    if (!audioBlob) return setError('録音データがありません')
+    if (!transcript.trim()) return setError('文字起こしがありません')
     setError('')
     setLoading(true)
-    setLoadingMessage('音声をアップロードしています...')
+    setLoadingMessage('保存しています...')
     const supabase = createClient()
-
-    const path = `${Date.now()}-meeting.webm`
-    const { error: uploadError } = await supabase.storage
-      .from('meeting-audio')
-      .upload(path, audioBlob, { contentType: 'audio/webm' })
-    if (uploadError) {
-      setLoading(false)
-      return setError('音声のアップロードに失敗しました: ' + uploadError.message)
-    }
-    const { data: urlData } = supabase.storage.from('meeting-audio').getPublicUrl(path)
 
     const { data: meeting, error: insertError } = await supabase
       .from('meetings')
       .insert({
         title: title.trim() || '無題のミーティング',
         status: 'processing',
-        audio_url: urlData.publicUrl,
+        transcript,
       })
       .select()
       .single()
@@ -90,17 +141,14 @@ export default function NewMeeting() {
       return setError('ミーティングの作成に失敗しました')
     }
 
-    setLoadingMessage('AIが解析しています...（1分ほどかかります）')
-    const res = await fetch('/api/meetings/process', {
+    setLoadingMessage('AIが解析しています...')
+    await fetch('/api/meetings/process', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: meeting.id }),
     })
 
     setLoading(false)
-    if (!res.ok) {
-      return router.push(`/meetings/${meeting.id}`)
-    }
     router.push(`/meetings/${meeting.id}`)
   }
 
@@ -109,7 +157,7 @@ export default function NewMeeting() {
       <div className="max-w-2xl mx-auto px-4 pb-20">
         <header className="py-5 flex items-center gap-3">
           <Link href="/meetings" className="w-8 h-8 rounded-lg bg-[#E15252] flex items-center justify-center text-white text-sm">📋</Link>
-          <h1 className="text-lg font-black text-[#1A1A1A]">ミーティングを録音</h1>
+          <h1 className="text-lg font-black text-[#1A1A1A]">ミーティングを記録</h1>
         </header>
 
         <div className="flex flex-col gap-5">
@@ -123,27 +171,37 @@ export default function NewMeeting() {
             {recording && (
               <div className="flex items-center gap-2 text-xs font-bold text-[#E15252]">
                 <span className="w-2 h-2 rounded-full bg-[#E15252] animate-pulse" />
-                録音中...
+                音声入力中...
               </div>
             )}
             {!recording ? (
               <button onClick={startRecording} className="px-8 py-3 bg-[#E15252] text-white font-bold text-sm rounded-full">
-                ● 録音開始
+                ● 音声入力開始
               </button>
             ) : (
               <button onClick={stopRecording} className="px-8 py-3 bg-[#1A1A1A] text-white font-bold text-sm rounded-full">
-                ■ 録音停止
+                ■ 停止
               </button>
-            )}
-            {audioUrl && !recording && (
-              <audio controls src={audioUrl} className="w-full mt-2" />
             )}
           </div>
 
+          {(transcript || interim) && (
+            <div>
+              <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">文字起こし</label>
+              <textarea
+                value={transcript}
+                onChange={e => { transcriptRef.current = e.target.value; setTranscript(e.target.value) }}
+                rows={8}
+                className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none"
+              />
+              {interim && <p className="text-xs text-[#9B9B9B] mt-2">{interim}</p>}
+            </div>
+          )}
+
           {error && <p className="text-xs text-red-500">{error}</p>}
 
-          <button onClick={handleSubmit} disabled={loading || !audioBlob} className="w-full py-4 bg-[#E15252] text-white font-bold text-sm rounded-xl disabled:opacity-50">
-            {loading ? loadingMessage || '処理中...' : 'アップロードして解析する'}
+          <button onClick={handleSubmit} disabled={loading || !transcript.trim()} className="w-full py-4 bg-[#E15252] text-white font-bold text-sm rounded-xl disabled:opacity-50">
+            {loading ? loadingMessage || '処理中...' : '保存してAI解析する'}
           </button>
         </div>
       </div>
