@@ -8,10 +8,12 @@ export default function MeetingEditor({
   id,
   initialTitle,
   initialMemo,
+  postId,
 }: {
   id: string
   initialTitle: string
   initialMemo: string
+  postId: string | null
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
@@ -23,10 +25,14 @@ export default function MeetingEditor({
   async function handleSave() {
     setSaving(true)
     const supabase = createClient()
+    const newTitle = title.trim() || '無題のミーティング'
     await supabase
       .from('meetings')
-      .update({ title: title.trim() || '無題のミーティング', memo })
+      .update({ title: newTitle, memo })
       .eq('id', id)
+    if (postId) {
+      await supabase.from('posts').update({ title: newTitle }).eq('id', postId)
+    }
     setSaving(false)
     setEditing(false)
     router.refresh()
@@ -37,6 +43,9 @@ export default function MeetingEditor({
     setDeleting(true)
     const supabase = createClient()
     await supabase.from('meetings').delete().eq('id', id)
+    if (postId) {
+      await supabase.from('posts').delete().eq('id', postId)
+    }
     router.push('/meetings')
   }
 

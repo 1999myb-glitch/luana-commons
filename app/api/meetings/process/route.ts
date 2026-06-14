@@ -85,6 +85,29 @@ ${meeting.transcript}`
       throw new Error(updateError.message)
     }
 
+    const bodyParts: string[] = []
+    if (analysis.kgi) bodyParts.push(`🎯 KGI（最終目標）\n${analysis.kgi}`)
+    if (analysis.kpi) bodyParts.push(`📊 KPI（重要指標）\n${analysis.kpi}`)
+    if (analysis.tasks.length > 0) bodyParts.push(`✅ タスク ${analysis.tasks.length}件`)
+    bodyParts.push('📋 詳細・PDCA・文字起こしは議事録ログ（📋）からご覧ください')
+
+    const { data: post } = await supabase
+      .from('posts')
+      .insert({
+        title: updated.title,
+        body: bodyParts.join('\n\n'),
+        category: 'meeting',
+        author_name: '議事録ログ',
+        image_urls: [],
+        likes_count: 0,
+      })
+      .select()
+      .single()
+
+    if (post) {
+      await supabase.from('meetings').update({ post_id: post.id }).eq('id', id)
+    }
+
     return Response.json(updated)
   } catch (err) {
     const message = err instanceof Error ? err.message : '不明なエラーが発生しました'

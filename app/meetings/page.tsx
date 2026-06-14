@@ -54,7 +54,7 @@ export default async function MeetingsList() {
                   <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ color: meta.color, background: meta.bg }}>
                     {meta.label}
                   </span>
-                  <DeleteMeetingButton id={meeting.id} />
+                  <DeleteMeetingButton id={meeting.id} postId={meeting.post_id} />
                 </Link>
               )
             })}
