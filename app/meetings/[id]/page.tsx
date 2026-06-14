@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ShareButton from './ShareButton'
+import MeetingEditor from './MeetingEditor'
 
 interface PdcaResult {
   plan: string
@@ -50,8 +51,18 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
         <div className="flex flex-col gap-5">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-[#9B9B9B]">{createdAt}</p>
-            <ShareButton />
+            <div className="flex items-center gap-2">
+              <ShareButton />
+              <MeetingEditor id={meeting.id} initialTitle={meeting.title} initialMemo={meeting.memo || ''} />
+            </div>
           </div>
+
+          {meeting.memo && (
+            <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
+              <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">メモ</p>
+              <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.memo}</p>
+            </div>
+          )}
 
           {meeting.status === 'processing' && (
             <div className="bg-white border border-[#F0F0F0] rounded-xl p-8 flex flex-col items-center gap-3 text-center">
