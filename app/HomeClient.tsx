@@ -61,16 +61,32 @@ function PostCard({ post, onClick }: { post: any; onClick: (p: any) => void }) {
     </article>
   )
 }
-function PostSheet({ post, onClose, onLike, liked }: { post: any; onClose: () => void; onLike: (id: string) => void; liked: boolean }) {
+function PostSheet({ post, onClose, onLike, liked, onUpdate }: { post: any; onClose: () => void; onLike: (id: string) => void; liked: boolean; onUpdate: (p: any) => void }) {
   const m = getMeta(post.category)
   const lbl = CATS.find(c => c.id === post.category)?.label || post.category
   const tags = Array.isArray(post.tags) ? post.tags : []
   const [comment, setComment] = useState("")
   const [comments, setComments] = useState<any[]>([])
+  const [editing, setEditing] = useState(false)
+  const [title, setTitle] = useState(post.title)
+  const [body, setBody] = useState(post.body)
+  const [saving, setSaving] = useState(false)
   function submit() {
     if (!comment.trim()) return
     setComments(p => [...p, { id: Date.now(), text: comment }])
     setComment("")
+  }
+  async function handleSave() {
+    setSaving(true)
+    const supabase = createClient()
+    const newTitle = title.trim() || post.title
+    await supabase.from("posts").update({ title: newTitle, body }).eq("id", post.id)
+    if (post.meeting_id) {
+      await supabase.from("meetings").update({ title: newTitle, notes: body }).eq("id", post.meeting_id)
+    }
+    setSaving(false)
+    setEditing(false)
+    onUpdate({ ...post, title: newTitle, body })
   }
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position:"fixed", inset:0, zIndex:200, background:"#1A1A1A70", backdropFilter:"blur(4px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
@@ -80,12 +96,24 @@ function PostSheet({ post, onClose, onLike, liked }: { post: any; onClose: () =>
           <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:16 }}>
             <div style={{ width:44, height:44, borderRadius:16, background:m.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>{m.icon}</div>
             <div><div style={{ fontSize:11, fontWeight:700, color:m.color }}>{lbl}</div><div style={{ fontSize:11, color:"#9B9B9B" }}>{post.created_at?.slice(0,10)} · {post.author_name}</div></div>
-            <button onClick={onClose} style={{ marginLeft:"auto", width:32, height:32, borderRadius:8, border:"1px solid #EEEEEE", background:"#F7F7F7", cursor:"pointer", fontSize:16 }}>×</button>
+            {!editing && <button onClick={() => { setTitle(post.title); setBody(post.body); setEditing(true) }} style={{ marginLeft:"auto", padding:"6px 14px", borderRadius:8, border:"1px solid #EEEEEE", background:"#F7F7F7", cursor:"pointer", fontSize:12, fontWeight:700, color:"#1A1A1A", fontFamily:"inherit" }}>編集</button>}
+            <button onClick={onClose} style={{ marginLeft:editing?"auto":8, width:32, height:32, borderRadius:8, border:"1px solid #EEEEEE", background:"#F7F7F7", cursor:"pointer", fontSize:16 }}>×</button>
           </div>
-          <h2 style={{ fontSize:20, fontWeight:900, color:"#1A1A1A", lineHeight:1.45, marginBottom:14 }}>{post.title}</h2>
+          {editing ? (
+            <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:14 }}>
+              <input value={title} onChange={e=>setTitle(e.target.value)} style={{ background:"#F7F7F7", border:"1.5px solid #EEEEEE", borderRadius:10, padding:"11px 14px", fontSize:16, fontWeight:800, color:"#1A1A1A", fontFamily:"inherit", outline:"none" }} />
+              <textarea value={body} onChange={e=>setBody(e.target.value)} rows={12} style={{ background:"#F7F7F7", border:"1.5px solid #EEEEEE", borderRadius:10, padding:"11px 14px", fontSize:14, color:"#333333", lineHeight:1.85, fontFamily:"inherit", outline:"none", resize:"vertical" }} />
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={handleSave} disabled={saving} style={{ padding:"10px 20px", background:"#E15252", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit", opacity:saving?.5:1 }}>{saving?"保存中...":"保存"}</button>
+                <button onClick={()=>setEditing(false)} style={{ padding:"10px 20px", background:"#F7F7F7", color:"#1A1A1A", border:"1px solid #EEEEEE", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>キャンセル</button>
+              </div>
+            </div>
+          ) : (
+            <h2 style={{ fontSize:20, fontWeight:900, color:"#1A1A1A", lineHeight:1.45, marginBottom:14 }}>{post.title}</h2>
+          )}
           {tags.length > 0 && <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:16 }}>{tags.map((t: string) => <span key={t} style={{ padding:"3px 10px", borderRadius:20, fontSize:11, border:"1.5px solid #EEEEEE", color:"#E15252" }}>{t}</span>)}</div>}
           <div style={{ height:1, background:"#F0F0F0", marginBottom:20 }} />
-          <p style={{ fontSize:14, color:"#333333", lineHeight:1.85, whiteSpace:"pre-wrap" }}>{post.body}</p>
+          {!editing && <p style={{ fontSize:14, color:"#333333", lineHeight:1.85, whiteSpace:"pre-wrap" }}>{post.body}</p>}
           {post.image_urls?.length > 0 && (
             <div style={{ marginTop:20 }}>
               <p style={{ fontSize:12, fontWeight:700, color:"#E15252", marginBottom:8 }}>📎 添付ファイル</p>
@@ -242,6 +270,7 @@ export default function HomeClient({ initialPosts }: { initialPosts: any[] }) {
     if (openPost?.id===id) setOpenPost((p:any)=>({...p,likes_count:(p.likes_count||0)+1}))
   }
   function handleNewPost(p: any) { setPosts((prev:any)=>[p,...prev]); setShowForm(false); setCat("all") }
+  function handleUpdatePost(updated: any) { setPosts((prev:any)=>prev.map((x:any)=>x.id===updated.id?updated:x)); setOpenPost(updated) }
   return (
     <div style={{ background:"#F3F3F3", minHeight:"100vh", fontFamily:"'Noto Sans JP', sans-serif", color:"#1A1A1A" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0;}@keyframes sheetUp{from{transform:translateY(80px);opacity:0}to{transform:translateY(0);opacity:1}}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#E0E0E0}`}</style>
@@ -306,7 +335,7 @@ export default function HomeClient({ initialPosts }: { initialPosts: any[] }) {
           }
         </div>
       </main>
-      {openPost&&<PostSheet post={posts.find((p:any)=>p.id===openPost.id)||openPost} onClose={()=>setOpenPost(null)} onLike={handleLike} liked={liked.includes(openPost.id)} />}
+      {openPost&&<PostSheet post={posts.find((p:any)=>p.id===openPost.id)||openPost} onClose={()=>setOpenPost(null)} onLike={handleLike} liked={liked.includes(openPost.id)} onUpdate={handleUpdatePost} />}
       {showForm&&<PostForm onSubmit={handleNewPost} onClose={()=>setShowForm(false)} />}
     </div>
   )

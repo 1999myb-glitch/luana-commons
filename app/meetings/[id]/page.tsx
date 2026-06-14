@@ -53,7 +53,7 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
             <p className="text-xs text-[#9B9B9B]">{createdAt}</p>
             <div className="flex items-center gap-2">
               <ShareButton />
-              <MeetingEditor id={meeting.id} initialTitle={meeting.title} initialMemo={meeting.memo || ''} postId={meeting.post_id} />
+              <MeetingEditor id={meeting.id} initialTitle={meeting.title} initialMemo={meeting.memo || ''} initialNotes={meeting.notes || ''} postId={meeting.post_id} />
             </div>
           </div>
 
@@ -61,6 +61,13 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
             <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
               <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">メモ</p>
               <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.memo}</p>
+            </div>
+          )}
+
+          {meeting.summary && (
+            <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
+              <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">📝 要約</p>
+              <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.summary}</p>
             </div>
           )}
 
