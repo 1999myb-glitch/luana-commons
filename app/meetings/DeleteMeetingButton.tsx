@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function DeleteMeetingButton({ id }: { id: string }) {
+export default function DeleteMeetingButton({ id, postId }: { id: string; postId: string | null }) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
 
@@ -15,6 +15,9 @@ export default function DeleteMeetingButton({ id }: { id: string }) {
     setDeleting(true)
     const supabase = createClient()
     await supabase.from('meetings').delete().eq('id', id)
+    if (postId) {
+      await supabase.from('posts').delete().eq('id', postId)
+    }
     router.refresh()
   }
 
