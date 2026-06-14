@@ -185,18 +185,17 @@ export default function NewMeeting() {
             )}
           </div>
 
-          {(transcript || interim) && (
-            <div>
-              <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">文字起こし</label>
-              <textarea
-                value={transcript}
-                onChange={e => { transcriptRef.current = e.target.value; setTranscript(e.target.value) }}
-                rows={8}
-                className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none"
-              />
-              {interim && <p className="text-xs text-[#9B9B9B] mt-2">{interim}</p>}
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">文字起こし</label>
+            <textarea
+              value={transcript}
+              onChange={e => { transcriptRef.current = e.target.value; setTranscript(e.target.value) }}
+              placeholder="ここに文字起こしテキストを貼り付け、または上のボタンで音声入力してください"
+              rows={8}
+              className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none"
+            />
+            {interim && <p className="text-xs text-[#9B9B9B] mt-2">{interim}</p>}
+          </div>
 
           {error && <p className="text-xs text-red-500">{error}</p>}
 
