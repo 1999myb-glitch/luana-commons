@@ -100,24 +100,24 @@ export default function NewPost() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F6F2EC]">
+    <main className="min-h-screen bg-[#F3F3F3]">
       <div className="max-w-2xl mx-auto px-4 pb-20">
         <header className="py-5 flex items-center gap-3">
-          <a href="/" className="w-8 h-8 rounded-lg bg-[#8A6F4D] flex items-center justify-center text-white text-sm">☕</a>
-          <h1 className="text-lg font-black text-[#2C2C2C]">新しい投稿</h1>
+          <a href="/" className="w-8 h-8 rounded-lg bg-[#E15252] flex items-center justify-center text-white text-sm">☕</a>
+          <h1 className="text-lg font-black text-[#1A1A1A]">新しい投稿</h1>
         </header>
 
         <div className="flex flex-col gap-5">
           <div>
-            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">TITLE *</label>
-            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="タイトルを入力" className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D]" />
+            <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">TITLE *</label>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="タイトルを入力" className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252]" />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">CATEGORY *</label>
+            <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">CATEGORY *</label>
             <div className="flex flex-wrap gap-2">
               {cats.map(cat => (
-                <button key={cat.id} onClick={() => setCategory(cat.id)} className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-colors ${category === cat.id ? 'bg-[#8A6F4D] border-[#8A6F4D] text-white' : 'bg-transparent border-[#D6C4A8] text-[#8A6F4D]'}`}>
+                <button key={cat.id} onClick={() => setCategory(cat.id)} className={`px-4 py-2 rounded-full text-xs font-bold border-2 transition-colors ${category === cat.id ? 'bg-[#E15252] border-[#E15252] text-white' : 'bg-transparent border-[#EEEEEE] text-[#E15252]'}`}>
                   {cat.label}
                 </button>
               ))}
@@ -125,34 +125,34 @@ export default function NewPost() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">BODY *</label>
-            <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="内容を入力..." rows={8} className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D] resize-none" />
+            <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">BODY *</label>
+            <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="内容を入力..." rows={8} className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none" />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">📎 ファイル添付</label>
-            <p className="text-xs text-[#A09080] mb-3">画像・PDF・Word・Excel・PowerPoint対応（複数可）</p>
-            <label className="block w-full bg-white border-2 border-dashed border-[#D6C4A8] rounded-xl p-6 text-center cursor-pointer hover:border-[#8A6F4D] transition-colors">
+            <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">📎 ファイル添付</label>
+            <p className="text-xs text-[#9B9B9B] mb-3">画像・PDF・Word・Excel・PowerPoint対応（複数可）</p>
+            <label className="block w-full bg-white border-2 border-dashed border-[#EEEEEE] rounded-xl p-6 text-center cursor-pointer hover:border-[#E15252] transition-colors">
               <div className="text-3xl mb-2">📁</div>
-              <p className="text-sm text-[#A09080]">クリックしてファイルを選択</p>
-              <p className="text-xs text-[#C0B0A0] mt-1">PNG・JPG・PDF・DOCX・XLSX・PPTX</p>
+              <p className="text-sm text-[#9B9B9B]">クリックしてファイルを選択</p>
+              <p className="text-xs text-[#C4C4C4] mt-1">PNG・JPG・PDF・DOCX・XLSX・PPTX</p>
               <input type="file" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx" onChange={handleFiles} className="hidden" />
             </label>
 
             {files.length > 0 && (
               <div className="mt-3 flex flex-col gap-2">
                 {files.map((file, i) => (
-                  <div key={i} className="flex items-center gap-3 bg-white border border-[#EDE8E0] rounded-xl px-4 py-3">
+                  <div key={i} className="flex items-center gap-3 bg-white border border-[#F0F0F0] rounded-xl px-4 py-3">
                     {previews[i] ? (
                       <img src={previews[i]} alt="" className="w-10 h-10 rounded-lg object-cover" />
                     ) : (
                       <span className="text-2xl">{getFileIcon(file.name)}</span>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-[#2C2C2C] truncate">{file.name}</p>
-                      <p className="text-xs text-[#A09080]">{(file.size / 1024).toFixed(0)} KB</p>
+                      <p className="text-xs font-bold text-[#1A1A1A] truncate">{file.name}</p>
+                      <p className="text-xs text-[#9B9B9B]">{(file.size / 1024).toFixed(0)} KB</p>
                     </div>
-                    <button onClick={() => removeFile(i)} className="text-xs text-[#A09080] hover:text-red-400">✕</button>
+                    <button onClick={() => removeFile(i)} className="text-xs text-[#9B9B9B] hover:text-red-400">✕</button>
                   </div>
                 ))}
               </div>
@@ -160,17 +160,17 @@ export default function NewPost() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">🔗 リンク添付（Google Drive・URL）</label>
-            <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://drive.google.com/... または任意のURL" className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D] mb-2" />
-            <input value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="リンクの表示名（例：資料はこちら）" className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D]" />
-            <p className="text-xs text-[#A09080] mt-2">💡 Google DriveのリンクはURLをそのまま貼り付けてください</p>
+            <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">🔗 リンク添付（Google Drive・URL）</label>
+            <input value={linkUrl} onChange={e => setLinkUrl(e.target.value)} placeholder="https://drive.google.com/... または任意のURL" className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] mb-2" />
+            <input value={linkLabel} onChange={e => setLinkLabel(e.target.value)} placeholder="リンクの表示名（例：資料はこちら）" className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252]" />
+            <p className="text-xs text-[#9B9B9B] mt-2">💡 Google DriveのリンクはURLをそのまま貼り付けてください</p>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">TAGS</label>
+            <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">TAGS</label>
             <div className="flex flex-wrap gap-2">
               {TAGS.map(tag => (
-                <button key={tag} onClick={() => toggleTag(tag)} className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${tags.includes(tag) ? 'bg-[#8A6F4D] border-[#8A6F4D] text-white' : 'bg-transparent border-[#D6C4A8] text-[#8A6F4D]'}`}>
+                <button key={tag} onClick={() => toggleTag(tag)} className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${tags.includes(tag) ? 'bg-[#E15252] border-[#E15252] text-white' : 'bg-transparent border-[#EEEEEE] text-[#E15252]'}`}>
                   {tag}
                 </button>
               ))}
@@ -178,13 +178,13 @@ export default function NewPost() {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-[#8A6F4D] mb-2 tracking-wider">YOUR NAME *</label>
-            <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="投稿者名" className="w-full bg-white border border-[#EDE8E0] rounded-xl px-4 py-3 text-sm text-[#2C2C2C] outline-none focus:border-[#8A6F4D]" />
+            <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">YOUR NAME *</label>
+            <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="投稿者名" className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252]" />
           </div>
 
           {error && <p className="text-xs text-red-500">{error}</p>}
 
-          <button onClick={handleSubmit} disabled={loading} className="w-full py-4 bg-[#8A6F4D] text-white font-bold text-sm rounded-xl disabled:opacity-50">
+          <button onClick={handleSubmit} disabled={loading} className="w-full py-4 bg-[#E15252] text-white font-bold text-sm rounded-xl disabled:opacity-50">
             {loading ? '投稿中...' : '投稿する ☕'}
           </button>
         </div>
