@@ -85,11 +85,33 @@ ${meeting.transcript}`
       throw new Error(updateError.message)
     }
 
+    const PRIORITY_LABEL: Record<string, string> = { high: '高', medium: '中', low: '低' }
+
     const bodyParts: string[] = []
     if (analysis.kgi) bodyParts.push(`🎯 KGI（最終目標）\n${analysis.kgi}`)
     if (analysis.kpi) bodyParts.push(`📊 KPI（重要指標）\n${analysis.kpi}`)
-    if (analysis.tasks.length > 0) bodyParts.push(`✅ タスク ${analysis.tasks.length}件`)
-    bodyParts.push('📋 詳細・PDCA・文字起こしは議事録ログ（📋）からご覧ください')
+
+    const pdca = analysis.pdca
+    if (pdca) {
+      const pdcaLines: string[] = []
+      if (pdca.plan) pdcaLines.push(`Plan: ${pdca.plan}`)
+      if (pdca.do) pdcaLines.push(`Do: ${pdca.do}`)
+      if (pdca.check) pdcaLines.push(`Check: ${pdca.check}`)
+      if (pdca.act) pdcaLines.push(`Act: ${pdca.act}`)
+      if (pdcaLines.length > 0) bodyParts.push(`🔄 PDCA\n${pdcaLines.join('\n')}`)
+    }
+
+    if (analysis.tasks.length > 0) {
+      const taskLines = analysis.tasks.map(task => {
+        const meta = [`優先度: ${PRIORITY_LABEL[task.priority] || task.priority}`]
+        if (task.assignee) meta.push(`担当: ${task.assignee}`)
+        if (task.due_date) meta.push(`納期: ${task.due_date}`)
+        return `・${task.title}（${meta.join(' / ')}）`
+      })
+      bodyParts.push(`✅ タスクリスト\n${taskLines.join('\n')}`)
+    }
+
+    bodyParts.push('📋 文字起こしの確認・編集は議事録ログ（📋）からご覧ください')
 
     const { data: post } = await supabase
       .from('posts')
