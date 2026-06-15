@@ -8,6 +8,7 @@ import TaskList from './TaskList'
 import ActivityHistory from './ActivityHistory'
 import KpiCard from './KpiCard'
 import PdcaEditor from './PdcaEditor'
+import ShareToFeed from './ShareToFeed'
 
 interface PdcaResult {
   plan: string
@@ -135,6 +136,13 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
               {pdca && (
                 <PdcaEditor meetingId={meeting.id} initialPdca={pdca} />
               )}
+
+              <ShareToFeed
+                meetingId={meeting.id}
+                meetingTitle={meeting.title}
+                decisions={meeting.decisions || ''}
+                pdcaNext={pdca?.next || ''}
+              />
 
               {meeting.transcript && (
                 <details className="bg-white border border-[#F0F0F0] rounded-xl p-5">
