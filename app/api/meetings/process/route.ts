@@ -16,6 +16,7 @@ interface TaskItem {
 }
 
 interface AnalysisResult {
+  summary: string
   kgi: string
   kpi: string
   pdca: PdcaResult
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
   try {
     const prompt = `以下は会議の文字起こしです。この内容を分析し、次のJSON形式のみを厳密に出力してください（説明文やコードブロックの記号は一切付けず、JSONのみを出力すること）。
 
-{"kgi": "最終目標(KGI)の説明", "kpi": "重要指標(KPI)の説明", "pdca": {"plan": "計画の内容", "do": "実行内容", "check": "評価内容", "act": "改善内容"}, "tasks": [{"title": "タスク名", "priority": "high または medium または low", "due_date": "YYYY-MM-DD形式、不明な場合は空文字", "assignee": "担当者・役割、不明な場合は空文字"}]}
+{"summary": "会議全体の要約。後でメンバーが読んで内容を思い出せるよう、決定事項や話の流れを3〜5文程度で記述", "kgi": "最終目標(KGI)の説明", "kpi": "重要指標(KPI)の説明", "pdca": {"plan": "計画の内容", "do": "実行内容", "check": "評価内容", "act": "改善内容"}, "tasks": [{"title": "タスク名", "priority": "high または medium または low", "due_date": "YYYY-MM-DD形式、不明な場合は空文字", "assignee": "担当者・役割、不明な場合は空文字"}]}
 
 文字起こし:
 ${meeting.transcript}`
@@ -68,26 +69,10 @@ ${meeting.transcript}`
 
     const analysis: AnalysisResult = JSON.parse(jsonMatch[0])
 
-    const { data: updated, error: updateError } = await supabase
-      .from('meetings')
-      .update({
-        kgi: analysis.kgi,
-        kpi: analysis.kpi,
-        pdca: analysis.pdca,
-        tasks: analysis.tasks,
-        status: 'done',
-      })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (updateError) {
-      throw new Error(updateError.message)
-    }
-
     const PRIORITY_LABEL: Record<string, string> = { high: '高', medium: '中', low: '低' }
 
     const bodyParts: string[] = []
+    if (analysis.summary) bodyParts.push(`📝 要約\n${analysis.summary}`)
     if (analysis.kgi) bodyParts.push(`🎯 KGI（最終目標）\n${analysis.kgi}`)
     if (analysis.kpi) bodyParts.push(`📊 KPI（重要指標）\n${analysis.kpi}`)
 
@@ -111,17 +96,39 @@ ${meeting.transcript}`
       bodyParts.push(`✅ タスクリスト\n${taskLines.join('\n')}`)
     }
 
-    bodyParts.push('📋 文字起こしの確認・編集は議事録ログ（📋）からご覧ください')
+    bodyParts.push('📋 文字起こしの確認は議事録ログ（📋）からご覧ください')
+
+    const notes = bodyParts.join('\n\n')
+
+    const { data: updated, error: updateError } = await supabase
+      .from('meetings')
+      .update({
+        summary: analysis.summary,
+        kgi: analysis.kgi,
+        kpi: analysis.kpi,
+        pdca: analysis.pdca,
+        tasks: analysis.tasks,
+        notes,
+        status: 'done',
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (updateError) {
+      throw new Error(updateError.message)
+    }
 
     const { data: post } = await supabase
       .from('posts')
       .insert({
         title: updated.title,
-        body: bodyParts.join('\n\n'),
+        body: notes,
         category: 'meeting',
         author_name: '議事録ログ',
         image_urls: [],
         likes_count: 0,
+        meeting_id: id,
       })
       .select()
       .single()

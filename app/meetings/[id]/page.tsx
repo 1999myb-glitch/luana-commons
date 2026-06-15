@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ShareButton from './ShareButton'
 import MeetingEditor from './MeetingEditor'
+import TaskList from './TaskList'
 
 interface PdcaResult {
   plan: string
@@ -16,12 +17,7 @@ interface TaskItem {
   priority: 'high' | 'medium' | 'low'
   due_date: string
   assignee: string
-}
-
-const PRIORITY_META: Record<string, { label: string; color: string; bg: string }> = {
-  high:   { label: '高', color: '#E15252', bg: '#FCEAE3' },
-  medium: { label: '中', color: '#C6A23A', bg: '#FBF6E3' },
-  low:    { label: '低', color: '#4FAF7A', bg: '#E8F6EF' },
+  done?: boolean
 }
 
 export default async function MeetingDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -53,7 +49,7 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
             <p className="text-xs text-[#9B9B9B]">{createdAt}</p>
             <div className="flex items-center gap-2">
               <ShareButton />
-              <MeetingEditor id={meeting.id} initialTitle={meeting.title} initialMemo={meeting.memo || ''} postId={meeting.post_id} />
+              <MeetingEditor id={meeting.id} initialTitle={meeting.title} initialMemo={meeting.memo || ''} initialNotes={meeting.notes || ''} postId={meeting.post_id} />
             </div>
           </div>
 
@@ -61,6 +57,13 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
             <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
               <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">メモ</p>
               <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.memo}</p>
+            </div>
+          )}
+
+          {meeting.summary && (
+            <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
+              <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">📝 要約</p>
+              <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.summary}</p>
             </div>
           )}
 
@@ -114,28 +117,7 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
 
               <div>
                 <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">タスクリスト</p>
-                {tasks.length === 0 ? (
-                  <p className="text-sm text-[#9B9B9B]">タスクは抽出されませんでした</p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    {tasks.map((task, i) => {
-                      const meta = PRIORITY_META[task.priority] || PRIORITY_META.medium
-                      return (
-                        <div key={i} className="bg-white border border-[#F0F0F0] rounded-xl p-4 flex items-center gap-3">
-                          <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ color: meta.color, background: meta.bg }}>
-                            {meta.label}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-[#1A1A1A] truncate">{task.title}</p>
-                            <p className="text-xs text-[#9B9B9B]">
-                              {task.assignee || '担当者未設定'}{task.due_date ? ` ・ 納期: ${task.due_date}` : ''}
-                            </p>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+                <TaskList meetingId={meeting.id} initialTasks={tasks} initialNotes={meeting.notes || ''} postId={meeting.post_id} />
               </div>
 
               {meeting.transcript && (
