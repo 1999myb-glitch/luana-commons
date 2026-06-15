@@ -312,6 +312,7 @@ export default function HomeClient({ initialPosts, currentUser }: { initialPosts
             <span style={{ fontSize:18, fontWeight:900, color:"#FFFFFF" }}>Luana Commons</span>
           </div>
           <AuthStatus displayName={currentUser?.displayName ?? null} />
+          {currentUser?.isAdmin && <Link href="/admin" style={{ width:38, height:38, borderRadius:10, border:"1.5px solid transparent", background:"#FFFFFF", cursor:"pointer", fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", textDecoration:"none" }}>⚙️</Link>}
           <Link href="/meetings" style={{ width:38, height:38, borderRadius:10, border:"1.5px solid transparent", background:"#FFFFFF", cursor:"pointer", fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", textDecoration:"none" }}>📋</Link>
           <button onClick={()=>setShowSearch(s=>!s)} style={{ width:38, height:38, borderRadius:10, border:"1.5px solid transparent", background:"#FFFFFF", cursor:"pointer", fontSize:17 }}>🔍</button>
           <button onClick={()=>setShowForm(true)} style={{ padding:"9px 18px", borderRadius:10, background:"#FFFFFF", color:"#E15252", border:"none", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>＋ 投稿</button>
