@@ -125,6 +125,7 @@ export default function NewMeeting() {
     setLoading(true)
     setLoadingMessage('保存しています...')
     const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
     const { data: meeting, error: insertError } = await supabase
       .from('meetings')
@@ -132,6 +133,7 @@ export default function NewMeeting() {
         title: title.trim() || '無題のミーティング',
         status: 'processing',
         transcript,
+        user_id: user?.id ?? null,
       })
       .select()
       .single()
