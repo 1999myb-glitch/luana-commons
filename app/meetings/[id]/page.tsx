@@ -5,6 +5,7 @@ import Link from 'next/link'
 import ShareButton from './ShareButton'
 import MeetingEditor from './MeetingEditor'
 import TaskList from './TaskList'
+import ActivityHistory from './ActivityHistory'
 
 interface PdcaResult {
   plan: string
@@ -40,6 +41,12 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
   const createdAt = new Date(meeting.created_at).toLocaleString('ja-JP')
   const pdca = meeting.pdca as PdcaResult | null
   const tasks = (meeting.tasks as TaskItem[] | null) || []
+
+  const { data: reports } = await supabase
+    .from('task_reports')
+    .select('*')
+    .eq('meeting_id', id)
+    .order('created_at', { ascending: false })
 
   return (
     <main className="min-h-screen bg-[#F3F3F3]">
@@ -114,6 +121,11 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
               </div>
 
               <TaskList meetingId={meeting.id} initialTasks={tasks} initialNotes={meeting.notes || ''} postId={meeting.post_id} />
+
+              <div>
+                <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">📋 活動履歴</p>
+                <ActivityHistory reports={reports || []} />
+              </div>
 
               {pdca && (
                 <div>

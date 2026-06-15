@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 interface TaskItem {
@@ -49,6 +50,98 @@ function applyTaskSection(notes: string, tasks: TaskItem[]): string {
   return notes ? `${notes}\n\n${section}` : section
 }
 
+function ReportForm({ meetingId, taskTitle, onDone }: { meetingId: string; taskTitle: string; onDone: () => void }) {
+  const router = useRouter()
+  const [content, setContent] = useState('')
+  const [url, setUrl] = useState('')
+  const [insight, setInsight] = useState('')
+  const [improvement, setImprovement] = useState('')
+  const [files, setFiles] = useState<File[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit() {
+    setSubmitting(true)
+    setError('')
+    const supabase = createClient()
+
+    const photoUrls: string[] = []
+    for (const file of files) {
+      const path = `${Date.now()}-${file.name}`
+      const { error: uploadError } = await supabase.storage.from('post-images').upload(path, file, { contentType: file.type })
+      if (uploadError) {
+        setSubmitting(false)
+        setError(`画像のアップロードに失敗しました: ${file.name}`)
+        return
+      }
+      const { data } = supabase.storage.from('post-images').getPublicUrl(path)
+      photoUrls.push(data.publicUrl)
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    let authorName = 'ゲスト'
+    if (user) {
+      const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', user.id).single()
+      authorName = profile?.display_name || 'ゲスト'
+    }
+
+    const { error: insertError } = await supabase.from('task_reports').insert({
+      meeting_id: meetingId,
+      task_title: taskTitle,
+      content: content.trim() || null,
+      photo_urls: photoUrls,
+      url: url.trim() || null,
+      insight: insight.trim() || null,
+      improvement: improvement.trim() || null,
+      author_name: authorName,
+      user_id: user?.id ?? null,
+    })
+
+    setSubmitting(false)
+    if (insertError) {
+      setError('報告の送信に失敗しました')
+      return
+    }
+
+    onDone()
+    router.refresh()
+  }
+
+  return (
+    <div className="bg-[#F9F9F9] border border-[#F0F0F0] rounded-xl p-4 flex flex-col gap-3">
+      <div>
+        <label className="block text-xs font-bold text-[#E15252] mb-1 tracking-wider">やったこと</label>
+        <textarea value={content} onChange={e => setContent(e.target.value)} rows={3} className="w-full bg-white border border-[#F0F0F0] rounded-lg px-3 py-2 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none" />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-[#E15252] mb-1 tracking-wider">写真</label>
+        <input type="file" accept="image/*" multiple onChange={e => setFiles(Array.from(e.target.files || []))} className="w-full text-xs text-[#1A1A1A]" />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-[#E15252] mb-1 tracking-wider">URL</label>
+        <input type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://..." className="w-full bg-white border border-[#F0F0F0] rounded-lg px-3 py-2 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252]" />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-[#E15252] mb-1 tracking-wider">気づき</label>
+        <textarea value={insight} onChange={e => setInsight(e.target.value)} rows={2} className="w-full bg-white border border-[#F0F0F0] rounded-lg px-3 py-2 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none" />
+      </div>
+      <div>
+        <label className="block text-xs font-bold text-[#E15252] mb-1 tracking-wider">次回改善点</label>
+        <textarea value={improvement} onChange={e => setImprovement(e.target.value)} rows={2} className="w-full bg-white border border-[#F0F0F0] rounded-lg px-3 py-2 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none" />
+      </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <div className="flex gap-2">
+        <button onClick={handleSubmit} disabled={submitting} className="px-4 py-2 rounded-full bg-[#E15252] text-white text-xs font-bold disabled:opacity-50">
+          {submitting ? '送信中...' : '送信'}
+        </button>
+        <button onClick={onDone} className="px-4 py-2 rounded-full border border-[#F0F0F0] bg-white text-xs font-bold text-[#1A1A1A]">
+          キャンセル
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function TaskList({
   meetingId,
   initialTasks,
@@ -62,6 +155,7 @@ export default function TaskList({
 }) {
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
   const [notes, setNotes] = useState(initialNotes)
+  const [reportIndex, setReportIndex] = useState<number | null>(null)
 
   async function persist(next: TaskItem[]) {
     setTasks(next)
@@ -138,37 +232,48 @@ export default function TaskList({
             const meta = PRIORITY_META[task.priority] || PRIORITY_META.medium
             const status = getStatus(task)
             return (
-              <div key={i} className="bg-white border border-[#F0F0F0] rounded-xl p-4 flex items-center gap-2 flex-wrap">
-                <input
-                  type="checkbox"
-                  checked={status === '完了'}
-                  onChange={() => toggleDone(i)}
-                  className="w-5 h-5 accent-[#E15252] flex-shrink-0"
-                />
-                <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ color: meta.color, background: meta.bg }}>
-                  {meta.label}
-                </span>
-                <p className={`flex-1 min-w-[100px] text-sm font-bold truncate ${status === '完了' ? 'text-[#C4C4C4] line-through' : 'text-[#1A1A1A]'}`}>{task.title}</p>
-                <input
-                  type="text"
-                  defaultValue={task.assignee}
-                  onBlur={e => setAssignee(i, e.target.value)}
-                  placeholder="担当者"
-                  className="w-24 text-xs text-[#1A1A1A] bg-white border border-[#F0F0F0] rounded-lg px-2 py-1.5 outline-none focus:border-[#E15252]"
-                />
-                <input
-                  type="date"
-                  value={task.due_date || ''}
-                  onChange={e => setDueDate(i, e.target.value)}
-                  className="text-xs text-[#1A1A1A] bg-white border border-[#F0F0F0] rounded-lg px-2 py-1.5 outline-none focus:border-[#E15252]"
-                />
-                <select
-                  value={status}
-                  onChange={e => setStatus(i, e.target.value as Status)}
-                  className="text-xs text-[#1A1A1A] bg-white border border-[#F0F0F0] rounded-lg px-2 py-1.5 outline-none focus:border-[#E15252]"
-                >
-                  {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
+              <div key={i} className="flex flex-col gap-2">
+                <div className="bg-white border border-[#F0F0F0] rounded-xl p-4 flex items-center gap-2 flex-wrap">
+                  <input
+                    type="checkbox"
+                    checked={status === '完了'}
+                    onChange={() => toggleDone(i)}
+                    className="w-5 h-5 accent-[#E15252] flex-shrink-0"
+                  />
+                  <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ color: meta.color, background: meta.bg }}>
+                    {meta.label}
+                  </span>
+                  <p className={`flex-1 min-w-[100px] text-sm font-bold truncate ${status === '完了' ? 'text-[#C4C4C4] line-through' : 'text-[#1A1A1A]'}`}>{task.title}</p>
+                  <input
+                    type="text"
+                    defaultValue={task.assignee}
+                    onBlur={e => setAssignee(i, e.target.value)}
+                    placeholder="担当者"
+                    className="w-24 text-xs text-[#1A1A1A] bg-white border border-[#F0F0F0] rounded-lg px-2 py-1.5 outline-none focus:border-[#E15252]"
+                  />
+                  <input
+                    type="date"
+                    value={task.due_date || ''}
+                    onChange={e => setDueDate(i, e.target.value)}
+                    className="text-xs text-[#1A1A1A] bg-white border border-[#F0F0F0] rounded-lg px-2 py-1.5 outline-none focus:border-[#E15252]"
+                  />
+                  <select
+                    value={status}
+                    onChange={e => setStatus(i, e.target.value as Status)}
+                    className="text-xs text-[#1A1A1A] bg-white border border-[#F0F0F0] rounded-lg px-2 py-1.5 outline-none focus:border-[#E15252]"
+                  >
+                    {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <button
+                    onClick={() => setReportIndex(reportIndex === i ? null : i)}
+                    className="px-3 py-1.5 rounded-full border border-[#F0F0F0] bg-white text-xs font-bold text-[#E15252] whitespace-nowrap"
+                  >
+                    {reportIndex === i ? '閉じる' : '報告する'}
+                  </button>
+                </div>
+                {reportIndex === i && (
+                  <ReportForm meetingId={meetingId} taskTitle={task.title} onDone={() => setReportIndex(null)} />
+                )}
               </div>
             )
           })}
