@@ -6,12 +6,15 @@ import ShareButton from './ShareButton'
 import MeetingEditor from './MeetingEditor'
 import TaskList from './TaskList'
 import ActivityHistory from './ActivityHistory'
+import KpiCard from './KpiCard'
+import PdcaEditor from './PdcaEditor'
 
 interface PdcaResult {
   plan: string
   do: string
   check: string
   act: string
+  next?: string
 }
 
 interface TaskItem {
@@ -112,10 +115,12 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
                       <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">KGI（最終目標）</p>
                       <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.kgi || '-'}</p>
                     </div>
-                    <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
-                      <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">KPI（重要指標）</p>
-                      <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.kpi || '-'}</p>
-                    </div>
+                    <KpiCard
+                      meetingId={meeting.id}
+                      kpiDescription={meeting.kpi || ''}
+                      initialTarget={meeting.kpi_target}
+                      initialActual={meeting.kpi_actual}
+                    />
                   </div>
                 </div>
               </div>
@@ -128,22 +133,7 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
               </div>
 
               {pdca && (
-                <div>
-                  <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">④ PDCA</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {([
-                      ['Plan', pdca.plan],
-                      ['Do', pdca.do],
-                      ['Check', pdca.check],
-                      ['Act', pdca.act],
-                    ] as const).map(([label, text]) => (
-                      <div key={label} className="bg-white border border-[#F0F0F0] rounded-xl p-5">
-                        <p className="text-xs font-bold text-[#1A1A1A] mb-2">{label}</p>
-                        <p className="text-sm text-[#9B9B9B] whitespace-pre-wrap">{text || '-'}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <PdcaEditor meetingId={meeting.id} initialPdca={pdca} />
               )}
 
               {meeting.transcript && (
