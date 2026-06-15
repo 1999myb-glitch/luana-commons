@@ -27,6 +27,13 @@ interface TaskItem {
   status?: '未着手' | '進行中' | '完了'
 }
 
+interface KpiItem {
+  name: string
+  target: string
+  actual: string
+  unit: string
+}
+
 export default async function MeetingDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
@@ -45,6 +52,12 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
   const createdAt = new Date(meeting.created_at).toLocaleString('ja-JP')
   const pdca = meeting.pdca as PdcaResult | null
   const tasks = (meeting.tasks as TaskItem[] | null) || []
+  const storedKpis = (meeting.kpis as KpiItem[] | null) || []
+  const kpis: KpiItem[] = storedKpis.length > 0
+    ? storedKpis
+    : (meeting.kpi || meeting.kpi_target || meeting.kpi_actual)
+      ? [{ name: meeting.kpi || '', target: meeting.kpi_target || '', actual: meeting.kpi_actual || '', unit: '' }]
+      : []
 
   const { data: reports } = await supabase
     .from('task_reports')
@@ -116,12 +129,7 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
                       <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">KGI（最終目標）</p>
                       <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.kgi || '-'}</p>
                     </div>
-                    <KpiCard
-                      meetingId={meeting.id}
-                      kpiDescription={meeting.kpi || ''}
-                      initialTarget={meeting.kpi_target}
-                      initialActual={meeting.kpi_actual}
-                    />
+                    <KpiCard meetingId={meeting.id} initialKpis={kpis} />
                   </div>
                 </div>
               </div>
@@ -141,6 +149,10 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
                 meetingId={meeting.id}
                 meetingTitle={meeting.title}
                 decisions={meeting.decisions || ''}
+                tasks={tasks}
+                reports={(reports || []).map(r => ({ insight: r.insight, improvement: r.improvement }))}
+                pdcaCheck={pdca?.check || ''}
+                pdcaAct={pdca?.act || ''}
                 pdcaNext={pdca?.next || ''}
               />
 

@@ -8,6 +8,12 @@ interface TaskItem {
   priority: 'high' | 'medium' | 'low'
   due_date: string
   assignee: string
+  done?: boolean
+  status?: '未着手' | '進行中' | '完了'
+}
+
+function getStatus(task: TaskItem): '未着手' | '進行中' | '完了' {
+  return task.status ?? (task.done ? '完了' : '未着手')
 }
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
@@ -45,14 +51,20 @@ export default async function MeetingsList() {
             {meetings.map(meeting => {
               const meta = STATUS_META[meeting.status] || STATUS_META.processing
               const tasks = (meeting.tasks as TaskItem[] | null) || []
+              const total = tasks.length
+              const completed = tasks.filter(t => getStatus(t) === '完了').length
+              const percent = total > 0 ? Math.round((completed / total) * 100) : 0
               return (
                 <Link key={meeting.id} href={`/meetings/${meeting.id}`} className="bg-white border border-[#F0F0F0] rounded-xl p-4 flex items-center gap-3 hover:border-[#E15252] transition-colors">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-[#1A1A1A] truncate">{meeting.title}</p>
                     <p className="text-xs text-[#9B9B9B]">
                       {new Date(meeting.created_at).toLocaleString('ja-JP')}
-                      {meeting.status === 'done' ? ` ・ タスク${tasks.length}件` : ''}
+                      {meeting.status === 'done' ? ` ・ タスク${total}件・進捗率${percent}%（${completed}/${total}完了）` : ''}
                     </p>
+                    {meeting.status === 'done' && meeting.kgi && (
+                      <p className="text-xs text-[#9B9B9B] truncate">🎯 {meeting.kgi}</p>
+                    )}
                   </div>
                   <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ color: meta.color, background: meta.bg }}>
                     {meta.label}
