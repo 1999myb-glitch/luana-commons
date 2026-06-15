@@ -2,6 +2,13 @@
 import { useState } from "react"
 import Link from "next/link"
 import { createClient } from '@/lib/supabase/client'
+import AuthStatus from './AuthStatus'
+
+interface CurrentUser {
+  id: string
+  displayName: string
+  isAdmin: boolean
+}
 
 const CATS = [
   { id: "all",      label: "All" },
@@ -61,7 +68,7 @@ function PostCard({ post, onClick }: { post: any; onClick: (p: any) => void }) {
     </article>
   )
 }
-function PostSheet({ post, onClose, onLike, liked, onUpdate }: { post: any; onClose: () => void; onLike: (id: string) => void; liked: boolean; onUpdate: (p: any) => void }) {
+function PostSheet({ post, onClose, onLike, liked, onUpdate, onDelete, currentUser }: { post: any; onClose: () => void; onLike: (id: string) => void; liked: boolean; onUpdate: (p: any) => void; onDelete: (id: string) => void; currentUser: CurrentUser | null }) {
   const m = getMeta(post.category)
   const lbl = CATS.find(c => c.id === post.category)?.label || post.category
   const tags = Array.isArray(post.tags) ? post.tags : []
@@ -71,6 +78,8 @@ function PostSheet({ post, onClose, onLike, liked, onUpdate }: { post: any; onCl
   const [title, setTitle] = useState(post.title)
   const [body, setBody] = useState(post.body)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const canDelete = !!currentUser && (currentUser.id === post.user_id || currentUser.isAdmin)
   function submit() {
     if (!comment.trim()) return
     setComments(p => [...p, { id: Date.now(), text: comment }])
@@ -88,6 +97,17 @@ function PostSheet({ post, onClose, onLike, liked, onUpdate }: { post: any; onCl
     setEditing(false)
     onUpdate({ ...post, title: newTitle, body })
   }
+  async function handleDelete() {
+    if (!window.confirm("この投稿を削除します。よろしいですか？（元に戻せません）")) return
+    setDeleting(true)
+    const supabase = createClient()
+    await supabase.from("posts").delete().eq("id", post.id)
+    if (post.meeting_id) {
+      await supabase.from("meetings").delete().eq("id", post.meeting_id)
+    }
+    setDeleting(false)
+    onDelete(post.id)
+  }
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()} style={{ position:"fixed", inset:0, zIndex:200, background:"#1A1A1A70", backdropFilter:"blur(4px)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
       <div style={{ background:"#FFFFFF", borderRadius:"24px 24px 0 0", width:"100%", maxWidth:720, maxHeight:"92vh", overflow:"auto", padding:"0 0 40px", animation:"sheetUp .32s ease" }}>
@@ -96,7 +116,12 @@ function PostSheet({ post, onClose, onLike, liked, onUpdate }: { post: any; onCl
           <div style={{ display:"flex", gap:10, alignItems:"center", marginBottom:16 }}>
             <div style={{ width:44, height:44, borderRadius:16, background:m.bg, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>{m.icon}</div>
             <div><div style={{ fontSize:11, fontWeight:700, color:m.color }}>{lbl}</div><div style={{ fontSize:11, color:"#9B9B9B" }}>{post.created_at?.slice(0,10)} · {post.author_name}</div></div>
-            {!editing && <button onClick={() => { setTitle(post.title); setBody(post.body); setEditing(true) }} style={{ marginLeft:"auto", padding:"6px 14px", borderRadius:8, border:"1px solid #EEEEEE", background:"#F7F7F7", cursor:"pointer", fontSize:12, fontWeight:700, color:"#1A1A1A", fontFamily:"inherit" }}>編集</button>}
+            {!editing && (
+              <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+                <button onClick={() => { setTitle(post.title); setBody(post.body); setEditing(true) }} style={{ padding:"6px 14px", borderRadius:8, border:"1px solid #EEEEEE", background:"#F7F7F7", cursor:"pointer", fontSize:12, fontWeight:700, color:"#1A1A1A", fontFamily:"inherit" }}>編集</button>
+                {canDelete && <button onClick={handleDelete} disabled={deleting} style={{ padding:"6px 14px", borderRadius:8, border:"1px solid #EEEEEE", background:"#F7F7F7", cursor:"pointer", fontSize:12, fontWeight:700, color:"#E15252", fontFamily:"inherit", opacity:deleting?.5:1 }}>{deleting?"削除中...":"削除"}</button>}
+              </div>
+            )}
             <button onClick={onClose} style={{ marginLeft:editing?"auto":8, width:32, height:32, borderRadius:8, border:"1px solid #EEEEEE", background:"#F7F7F7", cursor:"pointer", fontSize:16 }}>×</button>
           </div>
           {editing ? (
@@ -152,7 +177,7 @@ function PostSheet({ post, onClose, onLike, liked, onUpdate }: { post: any; onCl
     </div>
   )
 }
-function PostForm({ onSubmit, onClose }: { onSubmit: (p: any) => void; onClose: () => void }) {
+function PostForm({ onSubmit, onClose, currentUser }: { onSubmit: (p: any) => void; onClose: () => void; currentUser: CurrentUser | null }) {
   const [form, setForm] = useState({ title:"", category:"learning", body:"", author:"" })
   const [tags, setTags] = useState<string[]>([])
   const [linkUrl, setLinkUrl] = useState("")
@@ -168,9 +193,10 @@ function PostForm({ onSubmit, onClose }: { onSubmit: (p: any) => void; onClose: 
     sel.forEach(f => setPreviews(p=>[...p, /\.(png|jpg|jpeg|gif|webp)$/i.test(f.name)?URL.createObjectURL(f):""]))
   }
   async function submit() {
+    const authorName = currentUser ? currentUser.displayName : form.author
     if (!form.title.trim()) return setError("タイトルを入力してください")
     if (!form.body.trim())  return setError("本文を入力してください")
-    if (!form.author.trim()) return setError("名前を入力してください")
+    if (!authorName.trim()) return setError("名前を入力してください")
     setError(""); setLoading(true)
     const supabase = createClient()
     const urls: string[] = []
@@ -182,7 +208,11 @@ function PostForm({ onSubmit, onClose }: { onSubmit: (p: any) => void; onClose: 
       urls.push(`${f.name}::${data.publicUrl}`)
     }
     const body = form.body + (linkUrl ? `\n\n📎 [${linkLabel||linkUrl}](${linkUrl})` : "")
-    const { data, error } = await supabase.from("posts").insert({ title:form.title, body, category:form.category, author_name:form.author, image_urls:urls, likes_count:0 }).select().single()
+    const { data, error } = await supabase.from("posts").insert({
+      title:form.title, body, category:form.category, author_name:authorName,
+      image_urls:urls, likes_count:0,
+      ...(currentUser ? { user_id: currentUser.id } : {}),
+    }).select().single()
     setLoading(false)
     if (error) return setError("投稿に失敗しました")
     onSubmit(data)
@@ -239,7 +269,7 @@ function PostForm({ onSubmit, onClose }: { onSubmit: (p: any) => void; onClose: 
               {TAGS.map(t=><button key={t} onClick={()=>toggleTag(t)} style={{ padding:"4px 11px", borderRadius:20, fontSize:11, fontWeight:600, border:`1.5px solid ${tags.includes(t)?"#E15252":"#EEEEEE"}`, background:tags.includes(t)?"#E15252":"transparent", color:tags.includes(t)?"#fff":"#E15252", cursor:"pointer", fontFamily:"inherit" }}>{t}</button>)}
             </div>
           </div>
-          <div><label style={lbl}>YOUR NAME *</label><input style={inp} value={form.author} onChange={e=>setForm(p=>({...p,author:e.target.value}))} placeholder="投稿者名" /></div>
+          {!currentUser && <div><label style={lbl}>YOUR NAME *</label><input style={inp} value={form.author} onChange={e=>setForm(p=>({...p,author:e.target.value}))} placeholder="投稿者名" /></div>}
           {error&&<p style={{ fontSize:12, color:"#E15252" }}>{error}</p>}
           <button onClick={submit} disabled={loading} style={{ width:"100%", padding:"14px", background:"#E15252", color:"#fff", border:"none", borderRadius:12, fontWeight:800, fontSize:15, cursor:"pointer", fontFamily:"inherit", opacity:loading?.5:1 }}>
             {loading?"投稿中...":"投稿する ☕"}
@@ -249,7 +279,7 @@ function PostForm({ onSubmit, onClose }: { onSubmit: (p: any) => void; onClose: 
     </div>
   )
 }
-export default function HomeClient({ initialPosts }: { initialPosts: any[] }) {
+export default function HomeClient({ initialPosts, currentUser }: { initialPosts: any[]; currentUser: CurrentUser | null }) {
   const [posts, setPosts] = useState(initialPosts)
   const [liked, setLiked] = useState<string[]>([])
   const [cat, setCat] = useState("all")
@@ -271,6 +301,7 @@ export default function HomeClient({ initialPosts }: { initialPosts: any[] }) {
   }
   function handleNewPost(p: any) { setPosts((prev:any)=>[p,...prev]); setShowForm(false); setCat("all") }
   function handleUpdatePost(updated: any) { setPosts((prev:any)=>prev.map((x:any)=>x.id===updated.id?updated:x)); setOpenPost(updated) }
+  function handleDeletePost(id: string) { setPosts((prev)=>prev.filter((x)=>x.id!==id)); setOpenPost(null) }
   return (
     <div style={{ background:"#F3F3F3", minHeight:"100vh", fontFamily:"'Noto Sans JP', sans-serif", color:"#1A1A1A" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');*{box-sizing:border-box;margin:0;padding:0;}@keyframes sheetUp{from{transform:translateY(80px);opacity:0}to{transform:translateY(0);opacity:1}}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#E0E0E0}`}</style>
@@ -280,6 +311,7 @@ export default function HomeClient({ initialPosts }: { initialPosts: any[] }) {
             <div style={{ width:34, height:34, borderRadius:10, background:"#FFFFFF", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>☕</div>
             <span style={{ fontSize:18, fontWeight:900, color:"#FFFFFF" }}>Luana Commons</span>
           </div>
+          <AuthStatus displayName={currentUser?.displayName ?? null} />
           <Link href="/meetings" style={{ width:38, height:38, borderRadius:10, border:"1.5px solid transparent", background:"#FFFFFF", cursor:"pointer", fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", textDecoration:"none" }}>📋</Link>
           <button onClick={()=>setShowSearch(s=>!s)} style={{ width:38, height:38, borderRadius:10, border:"1.5px solid transparent", background:"#FFFFFF", cursor:"pointer", fontSize:17 }}>🔍</button>
           <button onClick={()=>setShowForm(true)} style={{ padding:"9px 18px", borderRadius:10, background:"#FFFFFF", color:"#E15252", border:"none", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>＋ 投稿</button>
@@ -335,8 +367,8 @@ export default function HomeClient({ initialPosts }: { initialPosts: any[] }) {
           }
         </div>
       </main>
-      {openPost&&<PostSheet post={posts.find((p:any)=>p.id===openPost.id)||openPost} onClose={()=>setOpenPost(null)} onLike={handleLike} liked={liked.includes(openPost.id)} onUpdate={handleUpdatePost} />}
-      {showForm&&<PostForm onSubmit={handleNewPost} onClose={()=>setShowForm(false)} />}
+      {openPost&&<PostSheet post={posts.find((p:any)=>p.id===openPost.id)||openPost} onClose={()=>setOpenPost(null)} onLike={handleLike} liked={liked.includes(openPost.id)} onUpdate={handleUpdatePost} onDelete={handleDeletePost} currentUser={currentUser} />}
+      {showForm&&<PostForm onSubmit={handleNewPost} onClose={()=>setShowForm(false)} currentUser={currentUser} />}
     </div>
   )
 }

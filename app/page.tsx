@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUserAndProfile } from '@/lib/supabase/auth'
 import HomeClient from './HomeClient'
 
 export default async function Home(props: {
@@ -10,5 +11,10 @@ export default async function Home(props: {
     .select('*')
     .order('created_at', { ascending: false })
 
-  return <HomeClient initialPosts={posts || []} />
+  const { user, profile } = await getCurrentUserAndProfile(supabase)
+  const currentUser = user
+    ? { id: user.id, displayName: profile?.display_name || '', isAdmin: !!profile?.is_admin }
+    : null
+
+  return <HomeClient initialPosts={posts || []} currentUser={currentUser} />
 }

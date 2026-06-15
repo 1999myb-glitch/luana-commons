@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -38,6 +38,16 @@ export default function NewPost() {
   const [linkUrl, setLinkUrl] = useState('')
   const [linkLabel, setLinkLabel] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  const [currentUser, setCurrentUser] = useState<{ id: string; displayName: string } | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: profile } = await supabase.from('profiles').select('display_name').eq('id', user.id).single()
+      setCurrentUser({ id: user.id, displayName: profile?.display_name || '' })
+    })
+  }, [])
   const [previews, setPreviews] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -64,9 +74,10 @@ export default function NewPost() {
   }
 
   async function handleSubmit() {
+    const authorName = currentUser ? currentUser.displayName : author
     if (!title.trim()) return setError('タイトルを入力してください')
     if (!body.trim()) return setError('本文を入力してください')
-    if (!author.trim()) return setError('名前を入力してください')
+    if (!authorName.trim()) return setError('名前を入力してください')
     setError('')
     setLoading(true)
     const supabase = createClient()
@@ -91,8 +102,9 @@ export default function NewPost() {
     const finalBody = body + linkPart
 
     const { error } = await supabase.from('posts').insert({
-      title, body: finalBody, category, author_name: author,
+      title, body: finalBody, category, author_name: authorName,
       image_urls: uploadedUrls, likes_count: 0,
+      ...(currentUser ? { user_id: currentUser.id } : {}),
     })
     setLoading(false)
     if (error) return setError('投稿に失敗しました: ' + error.message)
@@ -177,10 +189,12 @@ export default function NewPost() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">YOUR NAME *</label>
-            <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="投稿者名" className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252]" />
-          </div>
+          {!currentUser && (
+            <div>
+              <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">YOUR NAME *</label>
+              <input value={author} onChange={e => setAuthor(e.target.value)} placeholder="投稿者名" className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252]" />
+            </div>
+          )}
 
           {error && <p className="text-xs text-red-500">{error}</p>}
 

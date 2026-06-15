@@ -4,9 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
-export default function DeleteMeetingButton({ id, postId }: { id: string; postId: string | null }) {
+export default function DeleteMeetingButton({ id, postId, canDelete }: { id: string; postId: string | null; canDelete: boolean }) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
+
+  if (!canDelete) return null
 
   async function handleDelete(e: React.MouseEvent) {
     e.preventDefault()

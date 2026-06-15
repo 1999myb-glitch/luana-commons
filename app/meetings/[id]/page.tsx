@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentUserAndProfile } from '@/lib/supabase/auth'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ShareButton from './ShareButton'
@@ -32,6 +33,9 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
 
   if (!meeting) notFound()
 
+  const { user, profile } = await getCurrentUserAndProfile(supabase)
+  const canDelete = !!user && (user.id === meeting.user_id || !!profile?.is_admin)
+
   const createdAt = new Date(meeting.created_at).toLocaleString('ja-JP')
   const pdca = meeting.pdca as PdcaResult | null
   const tasks = (meeting.tasks as TaskItem[] | null) || []
@@ -49,7 +53,7 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
             <p className="text-xs text-[#9B9B9B]">{createdAt}</p>
             <div className="flex items-center gap-2">
               <ShareButton />
-              <MeetingEditor id={meeting.id} initialTitle={meeting.title} initialMemo={meeting.memo || ''} initialNotes={meeting.notes || ''} postId={meeting.post_id} />
+              <MeetingEditor id={meeting.id} initialTitle={meeting.title} initialMemo={meeting.memo || ''} initialNotes={meeting.notes || ''} postId={meeting.post_id} canDelete={canDelete} />
             </div>
           </div>
 

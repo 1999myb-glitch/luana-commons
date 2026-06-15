@@ -10,12 +10,14 @@ export default function MeetingEditor({
   initialMemo,
   initialNotes,
   postId,
+  canDelete,
 }: {
   id: string
   initialTitle: string
   initialMemo: string
   initialNotes: string
   postId: string | null
+  canDelete: boolean
 }) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
@@ -70,13 +72,15 @@ export default function MeetingEditor({
         >
           編集
         </button>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="px-3 py-1.5 rounded-full border border-[#F0F0F0] bg-white text-xs font-bold text-[#E15252] disabled:opacity-50"
-        >
-          {deleting ? '削除中...' : '削除'}
-        </button>
+        {canDelete && (
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="px-3 py-1.5 rounded-full border border-[#F0F0F0] bg-white text-xs font-bold text-[#E15252] disabled:opacity-50"
+          >
+            {deleting ? '削除中...' : '削除'}
+          </button>
+        )}
       </div>
     )
   }

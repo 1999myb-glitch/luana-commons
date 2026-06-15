@@ -129,6 +129,7 @@ ${meeting.transcript}`
         image_urls: [],
         likes_count: 0,
         meeting_id: id,
+        user_id: meeting.user_id,
       })
       .select()
       .single()
