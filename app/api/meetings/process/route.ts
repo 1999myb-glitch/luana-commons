@@ -13,10 +13,13 @@ interface TaskItem {
   priority: 'high' | 'medium' | 'low'
   due_date: string
   assignee: string
+  status?: '未着手' | '進行中' | '完了'
+  done?: boolean
 }
 
 interface AnalysisResult {
   summary: string
+  decisions: string
   kgi: string
   kpi: string
   pdca: PdcaResult
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
   try {
     const prompt = `以下は会議の文字起こしです。この内容を分析し、次のJSON形式のみを厳密に出力してください（説明文やコードブロックの記号は一切付けず、JSONのみを出力すること）。
 
-{"summary": "会議全体の要約。後でメンバーが読んで内容を思い出せるよう、決定事項や話の流れを3〜5文程度で記述", "kgi": "最終目標(KGI)の説明", "kpi": "重要指標(KPI)の説明", "pdca": {"plan": "計画の内容", "do": "実行内容", "check": "評価内容", "act": "改善内容"}, "tasks": [{"title": "タスク名", "priority": "high または medium または low", "due_date": "YYYY-MM-DD形式、不明な場合は空文字", "assignee": "担当者・役割、不明な場合は空文字"}]}
+{"summary": "会議全体の要約。後でメンバーが読んで内容を思い出せるよう、話の流れを3〜5文程度で記述", "decisions": "会議で決定した事項を箇条書き風に改行区切りで記述。決定事項が無い場合は空文字", "kgi": "最終目標(KGI)の説明", "kpi": "重要指標(KPI)の説明", "pdca": {"plan": "計画の内容", "do": "実行内容", "check": "評価内容", "act": "改善内容"}, "tasks": [{"title": "タスク名", "priority": "high または medium または low", "due_date": "YYYY-MM-DD形式、不明な場合は空文字", "assignee": "担当者・役割、不明な場合は空文字"}]}
 
 文字起こし:
 ${meeting.transcript}`
@@ -71,8 +74,15 @@ ${meeting.transcript}`
 
     const PRIORITY_LABEL: Record<string, string> = { high: '高', medium: '中', low: '低' }
 
+    const tasksWithStatus: TaskItem[] = analysis.tasks.map(task => ({
+      ...task,
+      status: '未着手',
+      done: false,
+    }))
+
     const bodyParts: string[] = []
     if (analysis.summary) bodyParts.push(`📝 要約\n${analysis.summary}`)
+    if (analysis.decisions) bodyParts.push(`📌 決定事項\n${analysis.decisions}`)
     if (analysis.kgi) bodyParts.push(`🎯 KGI（最終目標）\n${analysis.kgi}`)
     if (analysis.kpi) bodyParts.push(`📊 KPI（重要指標）\n${analysis.kpi}`)
 
@@ -86,8 +96,8 @@ ${meeting.transcript}`
       if (pdcaLines.length > 0) bodyParts.push(`🔄 PDCA\n${pdcaLines.join('\n')}`)
     }
 
-    if (analysis.tasks.length > 0) {
-      const taskLines = analysis.tasks.map(task => {
+    if (tasksWithStatus.length > 0) {
+      const taskLines = tasksWithStatus.map(task => {
         const meta = [`優先度: ${PRIORITY_LABEL[task.priority] || task.priority}`]
         if (task.assignee) meta.push(`担当: ${task.assignee}`)
         if (task.due_date) meta.push(`納期: ${task.due_date}`)
@@ -104,10 +114,11 @@ ${meeting.transcript}`
       .from('meetings')
       .update({
         summary: analysis.summary,
+        decisions: analysis.decisions,
         kgi: analysis.kgi,
         kpi: analysis.kpi,
         pdca: analysis.pdca,
-        tasks: analysis.tasks,
+        tasks: tasksWithStatus,
         notes,
         status: 'done',
       })

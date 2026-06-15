@@ -19,6 +19,7 @@ interface TaskItem {
   due_date: string
   assignee: string
   done?: boolean
+  status?: '未着手' | '進行中' | '完了'
 }
 
 export default async function MeetingDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -64,13 +65,6 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
             </div>
           )}
 
-          {meeting.summary && (
-            <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
-              <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">📝 要約</p>
-              <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.summary}</p>
-            </div>
-          )}
-
           {meeting.status === 'processing' && (
             <div className="bg-white border border-[#F0F0F0] rounded-xl p-8 flex flex-col items-center gap-3 text-center">
               <div className="text-3xl">⏳</div>
@@ -89,20 +83,41 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
 
           {meeting.status === 'done' && (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
-                  <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">KGI（最終目標）</p>
-                  <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.kgi || '-'}</p>
-                </div>
-                <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
-                  <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">KPI（重要指標）</p>
-                  <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.kpi || '-'}</p>
+              <div>
+                <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">① 会議サマリー</p>
+                <div className="flex flex-col gap-3">
+                  {meeting.summary && (
+                    <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
+                      <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">📝 要約</p>
+                      <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.summary}</p>
+                    </div>
+                  )}
+
+                  {meeting.decisions && (
+                    <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
+                      <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">📌 決定事項</p>
+                      <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.decisions}</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
+                      <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">KGI（最終目標）</p>
+                      <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.kgi || '-'}</p>
+                    </div>
+                    <div className="bg-white border border-[#F0F0F0] rounded-xl p-5">
+                      <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">KPI（重要指標）</p>
+                      <p className="text-sm text-[#1A1A1A] whitespace-pre-wrap">{meeting.kpi || '-'}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              <TaskList meetingId={meeting.id} initialTasks={tasks} initialNotes={meeting.notes || ''} postId={meeting.post_id} />
+
               {pdca && (
                 <div>
-                  <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">PDCA</p>
+                  <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">④ PDCA</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {([
                       ['Plan', pdca.plan],
@@ -118,11 +133,6 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
                   </div>
                 </div>
               )}
-
-              <div>
-                <p className="text-xs font-bold text-[#E15252] mb-2 tracking-wider">タスクリスト</p>
-                <TaskList meetingId={meeting.id} initialTasks={tasks} initialNotes={meeting.notes || ''} postId={meeting.post_id} />
-              </div>
 
               {meeting.transcript && (
                 <details className="bg-white border border-[#F0F0F0] rounded-xl p-5">
