@@ -168,23 +168,10 @@ export default function NewMeeting() {
             <input value={title} onChange={e => setTitle(e.target.value)} placeholder="例: 週次定例ミーティング" className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252]" />
           </div>
 
-          <div className="bg-white border border-[#F0F0F0] rounded-xl p-8 flex flex-col items-center gap-4">
-            <div className="text-4xl font-black text-[#1A1A1A] tabular-nums">{formatTime(seconds)}</div>
-            {recording && (
-              <div className="flex items-center gap-2 text-xs font-bold text-[#E15252]">
-                <span className="w-2 h-2 rounded-full bg-[#E15252] animate-pulse" />
-                音声入力中...
-              </div>
-            )}
-            {!recording ? (
-              <button onClick={startRecording} className="px-8 py-3 bg-[#E15252] text-white font-bold text-sm rounded-full">
-                ● 音声入力開始
-              </button>
-            ) : (
-              <button onClick={stopRecording} className="px-8 py-3 bg-[#1A1A1A] text-white font-bold text-sm rounded-full">
-                ■ 停止
-              </button>
-            )}
+          <div className="bg-white border border-[#F0F0F0] rounded-xl p-4 flex flex-col gap-1">
+            <p className="text-xs text-[#9B9B9B]">基本的にはiPhoneなどで文字起こししたテキストを貼り付けてください。</p>
+            <p className="text-xs text-[#9B9B9B]">貼り付け後はそのままAI解析してください。</p>
+            <p className="text-xs text-[#9B9B9B]">必要な修正はAI解析後に行います。</p>
           </div>
 
           <div>
@@ -192,12 +179,34 @@ export default function NewMeeting() {
             <textarea
               value={transcript}
               onChange={e => { transcriptRef.current = e.target.value; setTranscript(e.target.value) }}
-              placeholder="ここに文字起こしテキストを貼り付け、または上のボタンで音声入力してください"
-              rows={8}
+              placeholder="ここに文字起こしテキストを貼り付けてください"
+              rows={10}
               className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none"
             />
             {interim && <p className="text-xs text-[#9B9B9B] mt-2">{interim}</p>}
           </div>
+
+          <details className="text-xs text-[#9B9B9B]">
+            <summary className="cursor-pointer font-bold text-[#9B9B9B]">🎙 音声入力を使う（試験機能）</summary>
+            <div className="mt-3 bg-white border border-[#F0F0F0] rounded-xl p-5 flex flex-col items-center gap-3">
+              <div className="text-2xl font-black text-[#1A1A1A] tabular-nums">{formatTime(seconds)}</div>
+              {recording && (
+                <div className="flex items-center gap-2 text-xs font-bold text-[#E15252]">
+                  <span className="w-2 h-2 rounded-full bg-[#E15252] animate-pulse" />
+                  音声入力中...
+                </div>
+              )}
+              {!recording ? (
+                <button onClick={startRecording} className="px-6 py-2 bg-[#E15252] text-white font-bold text-xs rounded-full">
+                  ● 音声入力開始
+                </button>
+              ) : (
+                <button onClick={stopRecording} className="px-6 py-2 bg-[#1A1A1A] text-white font-bold text-xs rounded-full">
+                  ■ 停止
+                </button>
+              )}
+            </div>
+          </details>
 
           {error && <p className="text-xs text-red-500">{error}</p>}
 

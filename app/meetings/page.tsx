@@ -30,9 +30,9 @@ export default async function MeetingsList() {
       <div className="max-w-2xl mx-auto px-4 pb-20">
         <header className="py-5 flex items-center gap-3">
           <Link href="/" className="w-8 h-8 rounded-lg bg-[#E15252] flex items-center justify-center text-white text-sm">☕</Link>
-          <h1 className="text-lg font-black text-[#1A1A1A] flex-1">ミーティングログ</h1>
+          <h1 className="text-lg font-black text-[#1A1A1A] flex-1">Meeting Notes</h1>
           <Link href="/meetings/new" className="px-4 py-2 rounded-full bg-[#E15252] text-white text-xs font-bold whitespace-nowrap">
-            ＋ 録音する
+            ＋ミーティング作成
           </Link>
         </header>
 
