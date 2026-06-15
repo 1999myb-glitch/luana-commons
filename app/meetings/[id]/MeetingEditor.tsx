@@ -21,20 +21,29 @@ export default function MeetingEditor({
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(initialTitle)
   const [memo, setMemo] = useState(initialMemo)
-  const [notes, setNotes] = useState(initialNotes)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  function applyMemoSection(notes: string, memo: string): string {
+    let rest = notes
+    const match = notes.match(/^📒 メモ\n[\s\S]*?(?:\n\n|$)/)
+    if (match) rest = notes.slice(match[0].length)
+    if (!memo.trim()) return rest
+    const section = `📒 メモ\n${memo}`
+    return rest ? `${section}\n\n${rest}` : section
+  }
 
   async function handleSave() {
     setSaving(true)
     const supabase = createClient()
     const newTitle = title.trim() || '無題のミーティング'
+    const newNotes = applyMemoSection(initialNotes, memo)
     await supabase
       .from('meetings')
-      .update({ title: newTitle, memo, notes })
+      .update({ title: newTitle, memo, notes: newNotes })
       .eq('id', id)
     if (postId) {
-      await supabase.from('posts').update({ title: newTitle, body: notes }).eq('id', postId)
+      await supabase.from('posts').update({ title: newTitle, body: newNotes }).eq('id', postId)
     }
     setSaving(false)
     setEditing(false)
@@ -92,16 +101,6 @@ export default function MeetingEditor({
           className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none"
         />
       </div>
-      <div>
-        <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">Meeting Notesの内容（Meeting Notesと同期されます）</label>
-        <textarea
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          rows={10}
-          placeholder="Meeting Notesに表示される内容"
-          className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none"
-        />
-      </div>
       <div className="flex gap-2">
         <button
           onClick={handleSave}
@@ -111,7 +110,7 @@ export default function MeetingEditor({
           {saving ? '保存中...' : '保存'}
         </button>
         <button
-          onClick={() => { setEditing(false); setTitle(initialTitle); setMemo(initialMemo); setNotes(initialNotes) }}
+          onClick={() => { setEditing(false); setTitle(initialTitle); setMemo(initialMemo) }}
           className="px-4 py-2 rounded-full border border-[#F0F0F0] bg-white text-xs font-bold text-[#1A1A1A]"
         >
           キャンセル
