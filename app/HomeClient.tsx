@@ -152,6 +152,13 @@ function PostSheet({ post, onClose, onLike, liked, onUpdate, onDelete, currentUs
               })}
             </div>
           )}
+          {post.meeting_id && (
+            <div style={{ marginTop:20 }}>
+              <Link href={`/meetings/${post.meeting_id}`} style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"10px 16px", background:"#F7F7F7", border:"1px solid #EEEEEE", borderRadius:10, textDecoration:"none", color:"#E15252", fontSize:13, fontWeight:700, fontFamily:"inherit" }}>
+                📝 議事録の詳細を見る
+              </Link>
+            </div>
+          )}
           <div style={{ marginTop:24, display:"flex", gap:10 }}>
             <button onClick={() => onLike(post.id)} style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 22px", borderRadius:12, border:`1.5px solid ${liked?"#E15252":"#EEEEEE"}`, background:liked?"#E15252":"transparent", color:liked?"#fff":"#9B9B9B", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>
               {liked?"♥":"♡"} {(post.likes_count||0)+(liked?1:0)}
