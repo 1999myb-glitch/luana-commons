@@ -345,8 +345,35 @@ function MeetingCard({ meeting }: { meeting: MeetingRow }) {
     </Link>
   )
 }
-function ActivityCard({ report }: { report: TaskReportRow }) {
+function ActivityCard({ report: init, onDeleted }: { report: TaskReportRow; onDeleted: (id: string) => void }) {
+  const [report, setReport] = useState<TaskReportRow>(init)
+  const [editing, setEditing] = useState(false)
+  const [taskTitle, setTaskTitle] = useState(init.task_title || '')
+  const [content, setContent] = useState(init.content || '')
+  const [url, setUrl] = useState(init.url || '')
+  const [insight, setInsight] = useState(init.insight || '')
+  const [improvement, setImprovement] = useState(init.improvement || '')
+  const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const photos = report.photo_urls || []
+  const ia = { background:"#F7F7F7", border:"1.5px solid #EEEEEE", borderRadius:8, padding:"8px 12px", fontSize:13, color:"#1A1A1A", fontFamily:"inherit", outline:"none", width:"100%" }
+  async function handleSave() {
+    setSaving(true)
+    const supabase = createClient()
+    const updates = { task_title: taskTitle.trim()||null, content: content.trim()||null, url: url.trim()||null, insight: insight.trim()||null, improvement: improvement.trim()||null }
+    await supabase.from('task_reports').update(updates).eq('id', report.id)
+    setReport({ ...report, ...updates })
+    setSaving(false)
+    setEditing(false)
+  }
+  async function handleDelete() {
+    if (!window.confirm('この活動記録を削除しますか？（元に戻せません）')) return
+    setDeleting(true)
+    const supabase = createClient()
+    await supabase.from('task_reports').delete().eq('id', report.id)
+    onDeleted(report.id)
+  }
+  function cancelEdit() { setEditing(false); setTaskTitle(report.task_title||''); setContent(report.content||''); setUrl(report.url||''); setInsight(report.insight||''); setImprovement(report.improvement||'') }
   return (
     <div style={{ background:"#fff", border:"1px solid #F0F0F0", borderRadius:20, padding:"20px 24px", boxShadow:"0 2px 10px rgba(0,0,0,0.04)", position:"relative", overflow:"hidden" }}>
       <div style={{ position:"absolute", left:0, top:0, bottom:0, width:3, borderRadius:"18px 0 0 18px", background:"#9A6FC6", opacity:.6 }} />
@@ -355,20 +382,40 @@ function ActivityCard({ report }: { report: TaskReportRow }) {
         {report.meetings?.title && <span style={{ fontSize:11, color:"#9B9B9B" }}>{report.meetings.title}</span>}
         <span style={{ fontSize:11, color:"#C4C4C4", marginLeft:"auto" }}>{new Date(report.created_at).toLocaleDateString('ja-JP', { month:'long', day:'numeric' })}</span>
       </div>
-      {report.task_title && <h3 style={{ fontSize:13, fontWeight:700, color:"#1A1A1A", marginBottom:4 }}>{report.task_title}</h3>}
-      {report.author_name && <p style={{ fontSize:12, color:"#9B9B9B", marginBottom:8 }}>報告者: {report.author_name}</p>}
-      {report.content && <p style={{ fontSize:13, color:"#333", lineHeight:1.7, whiteSpace:"pre-wrap", marginBottom:8 }}>{report.content}</p>}
-      {photos.length > 0 && (
-        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
-          {photos.map((url: string, i: number) => <img key={i} src={url} alt="" style={{ width:72, height:72, borderRadius:10, objectFit:"cover" }} />)}
+      {editing ? (
+        <div style={{ display:"flex", flexDirection:"column", gap:10, marginTop:4 }}>
+          <div><p style={{ fontSize:11, fontWeight:700, color:"#E15252", marginBottom:4 }}>タスク名</p><input style={ia} value={taskTitle} onChange={e=>setTaskTitle(e.target.value)} /></div>
+          <div><p style={{ fontSize:11, fontWeight:700, color:"#E15252", marginBottom:4 }}>やったこと</p><textarea style={{...ia, minHeight:72, resize:"vertical"}} value={content} onChange={e=>setContent(e.target.value)} /></div>
+          <div><p style={{ fontSize:11, fontWeight:700, color:"#E15252", marginBottom:4 }}>URL</p><input type="url" style={ia} value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://..." /></div>
+          <div><p style={{ fontSize:11, fontWeight:700, color:"#E15252", marginBottom:4 }}>気づき</p><textarea style={{...ia, minHeight:52, resize:"vertical"}} value={insight} onChange={e=>setInsight(e.target.value)} /></div>
+          <div><p style={{ fontSize:11, fontWeight:700, color:"#E15252", marginBottom:4 }}>次回改善点</p><textarea style={{...ia, minHeight:52, resize:"vertical"}} value={improvement} onChange={e=>setImprovement(e.target.value)} /></div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={handleSave} disabled={saving} style={{ padding:"9px 18px", background:"#E15252", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"inherit", opacity:saving?.5:1 }}>{saving?"保存中...":"保存"}</button>
+            <button onClick={cancelEdit} style={{ padding:"9px 18px", background:"#F7F7F7", color:"#1A1A1A", border:"1px solid #EEEEEE", borderRadius:10, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>キャンセル</button>
+          </div>
         </div>
-      )}
-      {report.url && <a href={report.url} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:"#E15252", wordBreak:"break-all", display:"block", marginBottom:8 }}>🔗 {report.url}</a>}
-      {(report.insight || report.improvement) && (
-        <div style={{ marginTop:8, padding:"10px 14px", background:"#F9F9F9", borderRadius:10, display:"flex", flexDirection:"column", gap:6 }}>
-          {report.insight && <p style={{ fontSize:12, color:"#333" }}>💡 {report.insight}</p>}
-          {report.improvement && <p style={{ fontSize:12, color:"#333" }}>🔜 {report.improvement}</p>}
-        </div>
+      ) : (
+        <>
+          {report.task_title && <h3 style={{ fontSize:13, fontWeight:700, color:"#1A1A1A", marginBottom:4 }}>{report.task_title}</h3>}
+          {report.author_name && <p style={{ fontSize:12, color:"#9B9B9B", marginBottom:8 }}>報告者: {report.author_name}</p>}
+          {report.content && <p style={{ fontSize:13, color:"#333", lineHeight:1.7, whiteSpace:"pre-wrap", marginBottom:8 }}>{report.content}</p>}
+          {photos.length > 0 && (
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
+              {photos.map((photoUrl: string, i: number) => <img key={i} src={photoUrl} alt="" style={{ width:72, height:72, borderRadius:10, objectFit:"cover" }} />)}
+            </div>
+          )}
+          {report.url && <a href={report.url} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:"#E15252", wordBreak:"break-all", display:"block", marginBottom:8 }}>🔗 {report.url}</a>}
+          {(report.insight || report.improvement) && (
+            <div style={{ marginTop:8, padding:"10px 14px", background:"#F9F9F9", borderRadius:10, display:"flex", flexDirection:"column", gap:6 }}>
+              {report.insight && <p style={{ fontSize:12, color:"#333" }}>💡 {report.insight}</p>}
+              {report.improvement && <p style={{ fontSize:12, color:"#333" }}>🔜 {report.improvement}</p>}
+            </div>
+          )}
+          <div style={{ display:"flex", gap:8, marginTop:12, paddingTop:10, borderTop:"1px solid #F0F0F0" }}>
+            <button onClick={() => setEditing(true)} style={{ padding:"7px 16px", background:"#F7F7F7", border:"1px solid #EEEEEE", borderRadius:10, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"inherit", color:"#1A1A1A" }}>編集</button>
+            <button onClick={handleDelete} disabled={deleting} style={{ padding:"7px 16px", background:"#F7F7F7", border:"1px solid #EEEEEE", borderRadius:10, fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:"inherit", color:"#E15252", opacity:deleting?.5:1 }}>{deleting?"削除中...":"削除"}</button>
+          </div>
+        </>
       )}
     </div>
   )
@@ -436,7 +483,7 @@ function MeetingView({ meetings }: { meetings: MeetingRow[] }) {
               <div style={{ fontSize:32, marginBottom:8 }}>📋</div>
               <p style={{ fontSize:14 }}>活動記録がありません</p>
             </div>
-          ) : activityReports.map((r) => <ActivityCard key={r.id} report={r} />)}
+          ) : activityReports.map((r) => <ActivityCard key={r.id} report={r} onDeleted={id => setActivityReports(prev => prev.filter(x => x.id !== id))} />)}
         </div>
       )}
     </>

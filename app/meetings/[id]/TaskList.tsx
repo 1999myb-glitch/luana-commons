@@ -156,6 +156,8 @@ export default function TaskList({
   const [tasks, setTasks] = useState<TaskItem[]>(initialTasks)
   const [notes, setNotes] = useState(initialNotes)
   const [reportIndex, setReportIndex] = useState<number | null>(null)
+  const [editTitleIndex, setEditTitleIndex] = useState<number | null>(null)
+  const [editTitle, setEditTitle] = useState('')
 
   async function persist(next: TaskItem[]) {
     setTasks(next)
@@ -182,6 +184,14 @@ export default function TaskList({
 
   function setDueDate(i: number, due_date: string) {
     persist(tasks.map((t, idx) => idx === i ? { ...t, due_date } : t))
+  }
+
+  function saveTitleEdit(i: number) {
+    const trimmed = editTitle.trim()
+    if (trimmed && trimmed !== tasks[i].title) {
+      persist(tasks.map((t, idx) => idx === i ? { ...t, title: trimmed } : t))
+    }
+    setEditTitleIndex(null)
   }
 
   if (tasks.length === 0) {
@@ -250,7 +260,22 @@ export default function TaskList({
                   <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ color: meta.color, background: meta.bg }}>
                     {meta.label}
                   </span>
-                  <p className={`flex-1 min-w-[100px] text-sm font-bold truncate ${status === '完了' ? 'text-[#C4C4C4] line-through' : 'text-[#1A1A1A]'}`}>{task.title}</p>
+                  {editTitleIndex === i ? (
+                    <input
+                      autoFocus
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      onBlur={() => saveTitleEdit(i)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveTitleEdit(i); if (e.key === 'Escape') setEditTitleIndex(null) }}
+                      className="flex-1 min-w-[100px] text-sm font-bold text-[#1A1A1A] bg-white border border-[#E15252] rounded-lg px-2 py-1 outline-none"
+                    />
+                  ) : (
+                    <p
+                      onClick={() => { setEditTitleIndex(i); setEditTitle(task.title) }}
+                      title="クリックでタイトルを編集"
+                      className={`flex-1 min-w-[100px] text-sm font-bold truncate cursor-text ${status === '完了' ? 'text-[#C4C4C4] line-through' : 'text-[#1A1A1A]'}`}
+                    >{task.title}</p>
+                  )}
                   <input
                     type="text"
                     defaultValue={task.assignee}
