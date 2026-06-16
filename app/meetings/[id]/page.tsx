@@ -78,7 +78,17 @@ export default async function MeetingDetail({ params }: { params: Promise<{ id: 
             <p className="text-xs text-[#9B9B9B]">{createdAt}</p>
             <div className="flex items-center gap-2">
               <ShareButton />
-              <MeetingEditor id={meeting.id} initialTitle={meeting.title} initialMemo={meeting.memo || ''} initialNotes={meeting.notes || ''} postId={meeting.post_id} canDelete={canDelete} />
+              <MeetingEditor
+            id={meeting.id}
+            initialTitle={meeting.title}
+            initialMemo={meeting.memo || ''}
+            initialSummary={meeting.summary || ''}
+            initialDecisions={meeting.decisions || ''}
+            initialKgi={meeting.kgi || ''}
+            initialNotes={meeting.notes || ''}
+            postId={meeting.post_id}
+            canDelete={canDelete}
+          />
             </div>
           </div>
 

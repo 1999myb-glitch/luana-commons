@@ -8,6 +8,9 @@ export default function MeetingEditor({
   id,
   initialTitle,
   initialMemo,
+  initialSummary,
+  initialDecisions,
+  initialKgi,
   initialNotes,
   postId,
   canDelete,
@@ -15,6 +18,9 @@ export default function MeetingEditor({
   id: string
   initialTitle: string
   initialMemo: string
+  initialSummary: string
+  initialDecisions: string
+  initialKgi: string
   initialNotes: string
   postId: string | null
   canDelete: boolean
@@ -23,16 +29,28 @@ export default function MeetingEditor({
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(initialTitle)
   const [memo, setMemo] = useState(initialMemo)
+  const [summary, setSummary] = useState(initialSummary)
+  const [decisions, setDecisions] = useState(initialDecisions)
+  const [kgi, setKgi] = useState(initialKgi)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  function applyMemoSection(notes: string, memo: string): string {
+  function applyMemoSection(notes: string, memoText: string): string {
     let rest = notes
     const match = notes.match(/^📒 メモ\n[\s\S]*?(?:\n\n|$)/)
     if (match) rest = notes.slice(match[0].length)
-    if (!memo.trim()) return rest
-    const section = `📒 メモ\n${memo}`
+    if (!memoText.trim()) return rest
+    const section = `📒 メモ\n${memoText}`
     return rest ? `${section}\n\n${rest}` : section
+  }
+
+  function cancel() {
+    setEditing(false)
+    setTitle(initialTitle)
+    setMemo(initialMemo)
+    setSummary(initialSummary)
+    setDecisions(initialDecisions)
+    setKgi(initialKgi)
   }
 
   async function handleSave() {
@@ -42,7 +60,14 @@ export default function MeetingEditor({
     const newNotes = applyMemoSection(initialNotes, memo)
     await supabase
       .from('meetings')
-      .update({ title: newTitle, memo, notes: newNotes })
+      .update({
+        title: newTitle,
+        memo,
+        summary: summary.trim() || null,
+        decisions: decisions.trim() || null,
+        kgi: kgi.trim() || null,
+        notes: newNotes,
+      })
       .eq('id', id)
     if (postId) {
       await supabase.from('posts').update({ title: newTitle, body: newNotes }).eq('id', postId)
@@ -85,25 +110,30 @@ export default function MeetingEditor({
     )
   }
 
+  const inp = "w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252]"
+  const lbl = "block text-xs font-bold text-[#E15252] mb-2 tracking-wider"
+
   return (
-    <div className="bg-white border border-[#F0F0F0] rounded-xl p-5 flex flex-col gap-3">
+    <div className="bg-white border border-[#F0F0F0] rounded-xl p-5 flex flex-col gap-4">
       <div>
-        <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">タイトル</label>
-        <input
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252]"
-        />
+        <label className={lbl}>タイトル</label>
+        <input value={title} onChange={e => setTitle(e.target.value)} className={inp} />
       </div>
       <div>
-        <label className="block text-xs font-bold text-[#E15252] mb-2 tracking-wider">メモ</label>
-        <textarea
-          value={memo}
-          onChange={e => setMemo(e.target.value)}
-          rows={4}
-          placeholder="メモを入力"
-          className="w-full bg-white border border-[#F0F0F0] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] outline-none focus:border-[#E15252] resize-none"
-        />
+        <label className={lbl}>📝 要約</label>
+        <textarea value={summary} onChange={e => setSummary(e.target.value)} rows={4} placeholder="会議の要約を入力" className={`${inp} resize-none`} />
+      </div>
+      <div>
+        <label className={lbl}>📌 決定事項</label>
+        <textarea value={decisions} onChange={e => setDecisions(e.target.value)} rows={4} placeholder="決定事項を入力" className={`${inp} resize-none`} />
+      </div>
+      <div>
+        <label className={lbl}>🎯 KGI（最終目標）</label>
+        <input value={kgi} onChange={e => setKgi(e.target.value)} placeholder="最終目標を入力" className={inp} />
+      </div>
+      <div>
+        <label className={lbl}>📒 メモ</label>
+        <textarea value={memo} onChange={e => setMemo(e.target.value)} rows={3} placeholder="メモを入力" className={`${inp} resize-none`} />
       </div>
       <div className="flex gap-2">
         <button
@@ -114,7 +144,7 @@ export default function MeetingEditor({
           {saving ? '保存中...' : '保存'}
         </button>
         <button
-          onClick={() => { setEditing(false); setTitle(initialTitle); setMemo(initialMemo) }}
+          onClick={cancel}
           className="px-4 py-2 rounded-full border border-[#F0F0F0] bg-white text-xs font-bold text-[#1A1A1A]"
         >
           キャンセル

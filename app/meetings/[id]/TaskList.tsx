@@ -214,12 +214,19 @@ export default function TaskList({
             <p className="text-xs font-bold text-[#1A1A1A]">🔥 今週の最優先タスク</p>
             {topTasks.map(task => {
               const meta = PRIORITY_META[task.priority] || PRIORITY_META.medium
+              const taskStatus = getStatus(tasks[task._i])
               return (
                 <div key={task._i} className="bg-white border border-[#F0F0F0] rounded-xl p-3 flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={taskStatus === '完了'}
+                    onChange={() => toggleDone(task._i)}
+                    className="w-5 h-5 accent-[#E15252] flex-shrink-0"
+                  />
                   <span className="px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap" style={{ color: meta.color, background: meta.bg }}>
                     {meta.label}
                   </span>
-                  <p className="flex-1 min-w-0 text-sm font-bold text-[#1A1A1A] truncate">{task.title}</p>
+                  <p className={`flex-1 min-w-0 text-sm font-bold truncate ${taskStatus === '完了' ? 'text-[#C4C4C4] line-through' : 'text-[#1A1A1A]'}`}>{task.title}</p>
                   {task.due_date && <p className="text-xs text-[#9B9B9B] whitespace-nowrap">{task.due_date}</p>}
                 </div>
               )
