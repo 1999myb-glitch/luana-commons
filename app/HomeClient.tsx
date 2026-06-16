@@ -9,6 +9,27 @@ interface CurrentUser {
   displayName: string
   isAdmin: boolean
 }
+interface MeetingRow {
+  id: string
+  title: string
+  status: string
+  created_at: string
+  summary?: string | null
+  kgi?: string | null
+  tasks?: Array<{ done?: boolean; status?: string }> | null
+}
+interface TaskReportRow {
+  id: string
+  task_title?: string | null
+  author_name?: string | null
+  content?: string | null
+  photo_urls?: string[] | null
+  url?: string | null
+  insight?: string | null
+  improvement?: string | null
+  created_at: string
+  meetings?: { title: string } | null
+}
 
 const CATS = [
   { id: "all",      label: "All" },
@@ -16,6 +37,7 @@ const CATS = [
   { id: "project",  label: "プロジェクト" },
   { id: "learning", label: "Learning" },
   { id: "knowledge",label: "Knowledge Base" },
+  { id: "meeting",  label: "Meeting" },
 ]
 const CAT_META: Record<string, { icon: string; color: string; bg: string }> = {
   notice:    { icon: "📢", color: "#E0734B", bg: "#FCEAE3" },
@@ -25,6 +47,11 @@ const CAT_META: Record<string, { icon: string; color: string; bg: string }> = {
   knowledge: { icon: "💡", color: "#C6A23A", bg: "#FBF6E3" },
 }
 const TAGS = ["AI","ビジネス","マーケティング","SNS","トレンド","ツール","海外事例","議事録","ノウハウ","ChatGPT","Claude","イベント"]
+const STATUS_META_HOME: Record<string, { label: string; color: string; bg: string }> = {
+  done:       { label: '完了', color: '#4FAF7A', bg: '#E8F6EF' },
+  processing: { label: '解析中', color: '#C6A23A', bg: '#FBF6E3' },
+  error:      { label: 'エラー', color: '#E15252', bg: '#FCEAE3' },
+}
 function timeAgo(d: string) {
   const s = (new Date().getTime() - new Date(d).getTime()) / 1000
   if (s < 86400)  return "今日"
@@ -238,7 +265,7 @@ function PostForm({ onSubmit, onClose, currentUser }: { onSubmit: (p: any) => vo
           <div>
             <label style={lbl}>CATEGORY *</label>
             <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-              {CATS.filter(c=>c.id!=="all").map(cat=>(
+              {CATS.filter(c=>c.id!=="all"&&c.id!=="meeting").map(cat=>(
                 <button key={cat.id} onClick={()=>setForm(p=>({...p,category:cat.id}))} style={{ padding:"7px 14px", borderRadius:20, fontSize:12, fontWeight:600, border:`1.5px solid ${form.category===cat.id?"#E15252":"#EEEEEE"}`, background:form.category===cat.id?"#E15252":"transparent", color:form.category===cat.id?"#fff":"#E15252", cursor:"pointer", fontFamily:"inherit" }}>
                   {getMeta(cat.id).icon} {cat.label}
                 </button>
@@ -285,7 +312,137 @@ function PostForm({ onSubmit, onClose, currentUser }: { onSubmit: (p: any) => vo
     </div>
   )
 }
-export default function HomeClient({ initialPosts, currentUser }: { initialPosts: any[]; currentUser: CurrentUser | null }) {
+function MeetingCard({ meeting }: { meeting: MeetingRow }) {
+  const tasks = meeting.tasks || []
+  const total = tasks.length
+  const completed = tasks.filter((t) => (t.status ?? (t.done ? '完了' : '未着手')) === '完了').length
+  const percent = total > 0 ? Math.round((completed / total) * 100) : null
+  const sm = STATUS_META_HOME[meeting.status] || STATUS_META_HOME.processing
+  return (
+    <Link href={`/meetings/${meeting.id}`}
+      style={{ display:"block", background:"#fff", border:"1px solid #F0F0F0", borderRadius:20, padding:"20px 24px", textDecoration:"none", color:"inherit", transition:"all .22s", position:"relative", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}
+      onMouseOver={e => { (e.currentTarget as HTMLElement).style.transform="translateY(-3px)"; (e.currentTarget as HTMLElement).style.boxShadow="0 12px 32px rgba(0,0,0,0.10)" }}
+      onMouseOut={e => { (e.currentTarget as HTMLElement).style.transform=""; (e.currentTarget as HTMLElement).style.boxShadow="0 2px 10px rgba(0,0,0,0.04)" }}
+    >
+      <div style={{ position:"absolute", left:0, top:0, bottom:0, width:3, borderRadius:"18px 0 0 18px", background:"#9A6FC6", opacity:.6 }} />
+      <div style={{ display:"flex", gap:14 }}>
+        <div style={{ width:40, height:40, borderRadius:12, background:"#F3EAFB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:19, flexShrink:0 }}>📝</div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", gap:6, marginBottom:7, alignItems:"center", flexWrap:"wrap" }}>
+            <span style={{ padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700, color:"#9A6FC6", background:"#F3EAFB" }}>meeting</span>
+            <span style={{ padding:"2px 8px", borderRadius:20, fontSize:11, fontWeight:700, color:sm.color, background:sm.bg }}>{sm.label}</span>
+          </div>
+          <h3 style={{ fontSize:14, fontWeight:700, color:"#1A1A1A", lineHeight:1.5, marginBottom:6 }}>{meeting.title}</h3>
+          {meeting.summary && <p style={{ fontSize:12, color:"#9B9B9B", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis", marginBottom:6 }}>{meeting.summary}</p>}
+          <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+            <span style={{ fontSize:11, color:"#C4C4C4" }}>{new Date(meeting.created_at).toLocaleDateString('ja-JP', { month:'long', day:'numeric' })}</span>
+            {total > 0 && <span style={{ fontSize:11, color:"#9B9B9B" }}>タスク {total}件</span>}
+            {percent !== null && <span style={{ fontSize:11, fontWeight:700, color:percent >= 100 ? "#4FAF7A" : "#E15252" }}>進捗 {percent}%</span>}
+            {meeting.kgi && <span style={{ fontSize:11, color:"#9B9B9B", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:160 }}>🎯 {meeting.kgi}</span>}
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
+function ActivityCard({ report }: { report: TaskReportRow }) {
+  const photos = report.photo_urls || []
+  return (
+    <div style={{ background:"#fff", border:"1px solid #F0F0F0", borderRadius:20, padding:"20px 24px", boxShadow:"0 2px 10px rgba(0,0,0,0.04)", position:"relative", overflow:"hidden" }}>
+      <div style={{ position:"absolute", left:0, top:0, bottom:0, width:3, borderRadius:"18px 0 0 18px", background:"#9A6FC6", opacity:.6 }} />
+      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+        <span style={{ fontSize:11, fontWeight:700, color:"#9A6FC6", background:"#F3EAFB", padding:"3px 10px", borderRadius:20 }}>活動記録</span>
+        {report.meetings?.title && <span style={{ fontSize:11, color:"#9B9B9B" }}>{report.meetings.title}</span>}
+        <span style={{ fontSize:11, color:"#C4C4C4", marginLeft:"auto" }}>{new Date(report.created_at).toLocaleDateString('ja-JP', { month:'long', day:'numeric' })}</span>
+      </div>
+      {report.task_title && <h3 style={{ fontSize:13, fontWeight:700, color:"#1A1A1A", marginBottom:4 }}>{report.task_title}</h3>}
+      {report.author_name && <p style={{ fontSize:12, color:"#9B9B9B", marginBottom:8 }}>報告者: {report.author_name}</p>}
+      {report.content && <p style={{ fontSize:13, color:"#333", lineHeight:1.7, whiteSpace:"pre-wrap", marginBottom:8 }}>{report.content}</p>}
+      {photos.length > 0 && (
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
+          {photos.map((url: string, i: number) => <img key={i} src={url} alt="" style={{ width:72, height:72, borderRadius:10, objectFit:"cover" }} />)}
+        </div>
+      )}
+      {report.url && <a href={report.url} target="_blank" rel="noopener noreferrer" style={{ fontSize:12, color:"#E15252", wordBreak:"break-all", display:"block", marginBottom:8 }}>🔗 {report.url}</a>}
+      {(report.insight || report.improvement) && (
+        <div style={{ marginTop:8, padding:"10px 14px", background:"#F9F9F9", borderRadius:10, display:"flex", flexDirection:"column", gap:6 }}>
+          {report.insight && <p style={{ fontSize:12, color:"#333" }}>💡 {report.insight}</p>}
+          {report.improvement && <p style={{ fontSize:12, color:"#333" }}>🔜 {report.improvement}</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+function MeetingView({ meetings }: { meetings: MeetingRow[] }) {
+  const [subTab, setSubTab] = useState<'list' | 'reports'>('list')
+  const [activityReports, setActivityReports] = useState<TaskReportRow[]>([])
+  const [activityLoading, setActivityLoading] = useState(false)
+  const [activityLoaded, setActivityLoaded] = useState(false)
+  async function loadReports() {
+    if (activityLoaded) return
+    setActivityLoading(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('task_reports')
+      .select('*, meetings(title)')
+      .order('created_at', { ascending: false })
+    setActivityReports((data || []) as TaskReportRow[])
+    setActivityLoading(false)
+    setActivityLoaded(true)
+  }
+  function handleSubTab(tab: 'list' | 'reports') {
+    setSubTab(tab)
+    if (tab === 'reports') loadReports()
+  }
+  return (
+    <>
+      <div style={{ marginBottom:20, padding:"18px 20px", background:"#F3EAFB", borderRadius:20, border:"1px solid #9A6FC628" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:44, height:44, borderRadius:16, background:"#9A6FC620", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>📝</div>
+          <div style={{ flex:1 }}>
+            <h2 style={{ fontSize:18, fontWeight:900, color:"#1A1A1A" }}>Meeting</h2>
+            <p style={{ fontSize:12, color:"#9B9B9B" }}>{meetings.length} 件のミーティング</p>
+          </div>
+          <Link href="/meetings/new" style={{ padding:"9px 16px", background:"#E15252", color:"#fff", borderRadius:10, fontSize:13, fontWeight:700, textDecoration:"none", whiteSpace:"nowrap" }}>
+            ＋ 作成
+          </Link>
+        </div>
+      </div>
+      <div style={{ display:"flex", gap:0, marginBottom:20, background:"#F7F7F7", borderRadius:12, padding:4 }}>
+        <button onClick={() => handleSubTab('list')} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:subTab==='list'?"#fff":"transparent", color:subTab==='list'?"#E15252":"#9B9B9B", fontWeight:subTab==='list'?700:500, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:subTab==='list'?"0 2px 8px rgba(0,0,0,0.06)":"none", transition:"all .18s" }}>
+          📋 Meeting一覧
+        </button>
+        <button onClick={() => handleSubTab('reports')} style={{ flex:1, padding:"10px", borderRadius:10, border:"none", background:subTab==='reports'?"#fff":"transparent", color:subTab==='reports'?"#E15252":"#9B9B9B", fontWeight:subTab==='reports'?700:500, fontSize:13, cursor:"pointer", fontFamily:"inherit", boxShadow:subTab==='reports'?"0 2px 8px rgba(0,0,0,0.06)":"none", transition:"all .18s" }}>
+          📝 活動記録
+        </button>
+      </div>
+      {subTab === 'list' && (
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {meetings.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"60px 0", color:"#C4C4C4" }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>📝</div>
+              <p style={{ fontSize:14 }}>まだミーティングがありません</p>
+              <Link href="/meetings/new" style={{ display:"inline-block", marginTop:14, padding:"10px 20px", background:"#E15252", color:"#fff", borderRadius:10, fontWeight:700, fontSize:13, textDecoration:"none" }}>ミーティングを作成する</Link>
+            </div>
+          ) : meetings.map((m) => <MeetingCard key={m.id} meeting={m} />)}
+        </div>
+      )}
+      {subTab === 'reports' && (
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {activityLoading ? (
+            <div style={{ textAlign:"center", padding:"40px 0", color:"#C4C4C4" }}><p style={{ fontSize:14 }}>読み込み中...</p></div>
+          ) : activityReports.length === 0 ? (
+            <div style={{ textAlign:"center", padding:"60px 0", color:"#C4C4C4" }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>📋</div>
+              <p style={{ fontSize:14 }}>活動記録がありません</p>
+            </div>
+          ) : activityReports.map((r) => <ActivityCard key={r.id} report={r} />)}
+        </div>
+      )}
+    </>
+  )
+}
+export default function HomeClient({ initialPosts, initialMeetings, currentUser }: { initialPosts: Record<string, unknown>[]; initialMeetings: MeetingRow[]; currentUser: CurrentUser | null }) {
   const [posts, setPosts] = useState(initialPosts)
   const [liked, setLiked] = useState<string[]>([])
   const [cat, setCat] = useState("all")
@@ -319,7 +476,6 @@ export default function HomeClient({ initialPosts, currentUser }: { initialPosts
           </div>
           <AuthStatus displayName={currentUser?.displayName ?? null} />
           {currentUser?.isAdmin && <Link href="/admin" style={{ width:38, height:38, borderRadius:10, border:"1.5px solid transparent", background:"#FFFFFF", cursor:"pointer", fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", textDecoration:"none" }}>⚙️</Link>}
-          <Link href="/meetings" aria-label="Meeting Notes" title="Meeting Notes" style={{ width:38, height:38, borderRadius:10, border:"1.5px solid transparent", background:"#FFFFFF", cursor:"pointer", fontSize:17, display:"flex", alignItems:"center", justifyContent:"center", textDecoration:"none" }}>📝</Link>
           <button onClick={()=>setShowSearch(s=>!s)} style={{ width:38, height:38, borderRadius:10, border:"1.5px solid transparent", background:"#FFFFFF", cursor:"pointer", fontSize:17 }}>🔍</button>
           <button onClick={()=>setShowForm(true)} style={{ padding:"9px 18px", borderRadius:10, background:"#FFFFFF", color:"#E15252", border:"none", fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>＋ 投稿</button>
         </div>
@@ -356,23 +512,25 @@ export default function HomeClient({ initialPosts, currentUser }: { initialPosts
           <div style={{ height:1, background:"#F0F0F0", marginBottom:28 }} />
           <h2 style={{ fontSize:15, fontWeight:800, color:"#1A1A1A", marginBottom:14 }}>すべての投稿</h2>
         </>}
-        {cat!=="all"&&<div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, padding:"18px 20px", background:getMeta(cat).bg, borderRadius:20, border:`1px solid ${getMeta(cat).color}28` }}>
+        {cat!=="all"&&cat!=="meeting"&&<div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:20, padding:"18px 20px", background:getMeta(cat).bg, borderRadius:20, border:`1px solid ${getMeta(cat).color}28` }}>
           <div style={{ width:44, height:44, borderRadius:16, background:getMeta(cat).color+"20", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22 }}>{getMeta(cat).icon}</div>
           <div>
             <h2 style={{ fontSize:18, fontWeight:900, color:"#1A1A1A" }}>{CATS.find(c=>c.id===cat)?.label}</h2>
             <p style={{ fontSize:12, color:"#9B9B9B" }}>{filtered.length} 件の投稿</p>
           </div>
         </div>}
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          {filtered.length===0
-            ?<div style={{ textAlign:"center", padding:"60px 0", color:"#C4C4C4" }}>
-                <div style={{ fontSize:32, marginBottom:8 }}>☕</div>
-                <p style={{ fontSize:14 }}>まだ投稿がありません</p>
-                <button onClick={()=>setShowForm(true)} style={{ marginTop:14, padding:"10px 20px", background:"#E15252", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>最初に投稿する</button>
-              </div>
-            :filtered.map((p:any)=><PostCard key={p.id} post={p} onClick={setOpenPost} />)
-          }
-        </div>
+        {cat==="meeting" ? <MeetingView meetings={initialMeetings} /> : (
+          <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+            {filtered.length===0
+              ?<div style={{ textAlign:"center", padding:"60px 0", color:"#C4C4C4" }}>
+                  <div style={{ fontSize:32, marginBottom:8 }}>☕</div>
+                  <p style={{ fontSize:14 }}>まだ投稿がありません</p>
+                  <button onClick={()=>setShowForm(true)} style={{ marginTop:14, padding:"10px 20px", background:"#E15252", color:"#fff", border:"none", borderRadius:10, fontWeight:700, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>最初に投稿する</button>
+                </div>
+              :filtered.map((p:any)=><PostCard key={p.id} post={p} onClick={setOpenPost} />)
+            }
+          </div>
+        )}
       </main>
       {openPost&&<PostSheet post={posts.find((p:any)=>p.id===openPost.id)||openPost} onClose={()=>setOpenPost(null)} onLike={handleLike} liked={liked.includes(openPost.id)} onUpdate={handleUpdatePost} onDelete={handleDeletePost} currentUser={currentUser} />}
       {showForm&&<PostForm onSubmit={handleNewPost} onClose={()=>setShowForm(false)} currentUser={currentUser} />}
